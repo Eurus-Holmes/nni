@@ -106,7 +106,7 @@ def start_rest_server(port, platform, mode, config_file_name, experiment_id=None
         'You could use \'nnictl create --help\' to get help information' % port)
         exit(1)
     
-    if (platform == 'pai' or platform == 'kubeflow') and detect_port(int(port) + 1):
+    if (platform != 'local') and detect_port(int(port) + 1):
         print_error('PAI mode need an additional adjacent port %d, and the port %d is used by another process!\n' \
         'You could set another port to start experiment!\n' \
         'You could use \'nnictl create --help\' to get help information' % ((int(port) + 1), (int(port) + 1)))
@@ -168,7 +168,9 @@ def set_remote_config(experiment_config, port, config_file_name):
             with open(stderr_full_path, 'a+') as fout:
                 fout.write(json.dumps(json.loads(err_message), indent=4, sort_keys=True, separators=(',', ':')))
         return False, err_message
-
+    result, message = setNNIManagerIp(experiment_config, port, config_file_name)
+    if not result:
+        return result, message
     #set trial_config
     return set_trial_config(experiment_config, port, config_file_name), err_message
 

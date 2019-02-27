@@ -18,6 +18,8 @@ jobs:
       python3 -m pip install torchvision==0.2.1 --user
       python3 -m pip install keras==2.1.6 --user
       python3 -m pip install tensorflow-gpu==1.10.0 --user
+      sudo apt-get install swig -y
+      nnictl package install --name=SMAC
     displayName: 'Install dependencies for integration tests'
   - script: |
       cd test
@@ -33,7 +35,7 @@ jobs:
     displayName: 'Built-in tuners / assessors tests'
   - script: |
       cd test
-      PATH=$HOME/.local/bin:$PATH python3 config_test.py --ts local
+      PATH=$HOME/.local/bin:$PATH python3 config_test.py --ts local --local_gpu
     displayName: 'Examples and advanced features tests on local machine'
   - script: |
       cd test
