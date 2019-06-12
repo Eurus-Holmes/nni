@@ -13,9 +13,10 @@ Contents
 
     Overview
     QuickStart<QuickStart>
-    Tutorials
-    Examples
-    Reference
+    Tutorials<tutorials>
+    Examples<examples>
+    Reference<reference>
     FAQ
-    Contribution
-    Changelog<RELEASE>
+    Contribution<contribution>
+    Changelog<Release>
+    Community Sharings<community_sharings>

@@ -36,6 +36,8 @@ interface ExperimentParams {
     trainingServicePlatform: string;
     multiPhase?: boolean;
     multiThread?: boolean;
+    versionCheck?: boolean;
+    logCollection?: string;
     tuner?: {
         className: string;
         builtinTunerName?: string;
@@ -44,6 +46,7 @@ interface ExperimentParams {
         classFileName?: string;
         checkpointDir: string;
         gpuNum?: number;
+        includeIntermediateResults?: boolean;
     };
     assessor?: {
         className: string;
@@ -96,6 +99,8 @@ abstract class Manager {
     public abstract stopExperiment(): Promise<void>;
     public abstract getExperimentProfile(): Promise<ExperimentProfile>;
     public abstract updateExperimentProfile(experimentProfile: ExperimentProfile, updateType: ProfileUpdateType): Promise<void>;
+    public abstract importData(data: string): Promise<void>;
+    public abstract exportData(): Promise<string>;
 
     public abstract addCustomizedTrialJob(hyperParams: string): Promise<void>;
     public abstract cancelTrialJobByUser(trialJobId: string): Promise<void>;

@@ -18,6 +18,8 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import sys
+import glob
 import argparse
 from utils import get_yml_content, dump_yml_content
 
@@ -40,6 +42,8 @@ def update_training_service_config(args):
             config[args.ts]['trial']['dataDir'] = args.data_dir
         if args.output_dir is not None:
             config[args.ts]['trial']['outputDir'] = args.output_dir
+        if args.vc is not None:
+            config[args.ts]['trial']['virtualCluster'] = args.vc
     elif args.ts == 'kubeflow':
         if args.nfs_server is not None:
             config[args.ts]['kubeflowConfig']['nfs']['server'] = args.nfs_server
@@ -67,9 +71,22 @@ def update_training_service_config(args):
 
     dump_yml_content(TRAINING_SERVICE_FILE, config)
 
+def convert_command():
+    '''convert command by platform'''
+    if sys.platform != 'win32':
+        return None
+    config_files = glob.glob('./**/*.yml') + glob.glob('./**/**/*.yml')
+    for config_file in config_files:
+        print('processing {}'.format(config_file))
+        yml_content = get_yml_content(config_file)
+        if yml_content.get('trial'):
+            if yml_content['trial'].get('command'):
+                yml_content['trial']['command'] = yml_content['trial']['command'].replace('python3', 'python')
+                dump_yml_content(config_file, yml_content)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ts", type=str, choices=['pai', 'kubeflow', 'remote'], default='pai')
+    parser.add_argument("--ts", type=str, choices=['pai', 'kubeflow', 'remote', 'local'], default='pai')
     parser.add_argument("--nni_docker_image", type=str)
     parser.add_argument("--nni_manager_ip", type=str)
     # args for PAI
@@ -78,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("--pai_host", type=str)
     parser.add_argument("--data_dir", type=str)
     parser.add_argument("--output_dir", type=str)
+    parser.add_argument("--vc", type=str)
     # args for kubeflow
     parser.add_argument("--nfs_server", type=str)
     parser.add_argument("--nfs_path", type=str)
@@ -93,3 +111,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     update_training_service_config(args)
+    if args.ts == 'local':
+        convert_command()

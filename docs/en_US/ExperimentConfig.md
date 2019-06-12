@@ -4,9 +4,10 @@ A config file is needed when create an experiment, the path of the config file i
 The config file is written in YAML format, and need to be written correctly.
 This document describes the rule to write config file, and will provide some examples and templates. 
 
-* [Template](#Template) (the templates of an config file)
-* [Configuration spec](#Configuration) (the configuration specification of every attribute in config file)
-* [Examples](#Examples) (the examples of config file)
+- [Experiment config reference](#experiment-config-reference)
+  - [Template](#template)
+  - [Configuration spec](#configuration-spec)
+  - [Examples](#examples)
 
 <a name="Template"></a>
 ## Template
@@ -149,6 +150,11 @@ machineList:
 
     Note: The maxExecDuration spec set the time of an experiment, not a trial job. If the experiment reach the max duration time, the experiment will not stop, but could not submit new trial jobs any more.
 
+* __debug__
+  * Description
+
+    NNI will check the version of nniManager process and the version of trialKeeper in remote, pai and kubernetes platform. If you want to disable version check, you could set debug be true.
+
 * __maxTrialNum__
   * Description
 
@@ -163,7 +169,7 @@ machineList:
 
     * __remote__ submit trial jobs to remote ubuntu machines, and __machineList__ field should be filed in order to set up SSH connection to remote machine.  
 
-    * __pai__  submit trial jobs to [OpenPai](https://github.com/Microsoft/pai) of Microsoft. For more details of pai configuration, please reference [PAIMOdeDoc](./PAIMode.md)
+    * __pai__  submit trial jobs to [OpenPai](https://github.com/Microsoft/pai) of Microsoft. For more details of pai configuration, please reference [PAIMOdeDoc](./PaiMode.md)
 
     * __kubeflow__ submit trial jobs to [kubeflow](https://www.kubeflow.org/docs/about/kubeflow/), NNI support kubeflow based on normal kubernetes and [azure kubernetes](https://azure.microsoft.com/en-us/services/kubernetes-service/).
 
@@ -198,6 +204,11 @@ machineList:
 
     __logLevel__ sets log level for the experiment, available log levels are: `trace, debug, info, warning, error, fatal`. The default value is `info`.
 
+* __logCollection__
+  * Description
+
+    __logCollection__ set the way to collect log in remote, pai, kubeflow, frameworkcontroller platform. There are two ways to collect log, one way is from `http`, trial keeper will post log content back from http request in this way, but this way may slow down the speed to process logs in trialKeeper. The other way is `none`, trial keeper will not post log content back, and only post job metrics. If your log content is too big, you could consider setting this param be `none`.
+
 * __tuner__
   * Description
 
@@ -206,6 +217,7 @@ machineList:
     * __builtinTunerName__
 
       __builtinTunerName__ specifies the name of system tuner, NNI sdk provides four kinds of tuner, including {__TPE__, __Random__, __Anneal__, __Evolution__, __BatchTuner__, __GridSearch__}
+
     * __classArgs__
 
       __classArgs__ specifies the arguments of tuner algorithm. If the __builtinTunerName__ is in {__TPE__, __Random__, __Anneal__, __Evolution__}, user should set __optimize_mode__.
@@ -222,11 +234,16 @@ machineList:
     * __classArgs__
 
       __classArgs__ specifies the arguments of tuner algorithm.
-    * __gpuNum__
+
+  * __gpuNum__
 
       __gpuNum__ specifies the gpu number to run the tuner process. The value of this field should be a positive number.
 
       Note: users could only specify one way to set tuner, for example, set {tunerName, optimizationMode} or {tunerCommand, tunerCwd}, and could not set them both.
+
+  * __includeIntermediateResults__
+
+      If __includeIntermediateResults__ is true, the last intermediate result of the trial that is early stopped by assessor is sent to tuner as final result. The default value of __includeIntermediateResults__ is false.
 
 * __assessor__
 
@@ -375,6 +392,22 @@ machineList:
 
       __image__ set the image to be used in __worker__.
 
+* __localConfig__
+
+  __localConfig__ is applicable only if __trainingServicePlatform__ is set to `local`, otherwise there should not be __localConfig__ section in configuration file.
+  * __gpuIndices__
+  
+    __gpuIndices__ is used to specify designated GPU devices for NNI, if it is set, only the specified GPU devices are used for NNI trial jobs. Single or multiple GPU indices can be specified, multiple GPU indices are seperated by comma(,), such as `1` or  `0,1,3`.
+
+  * __maxTrialNumPerGpu__
+  
+    __maxTrialNumPerGpu__ is used to specify the max concurrency trial number on a GPU device.
+    
+  * __useActiveGpu__
+  
+    __useActiveGpu__ is used to specify whether to use a GPU if there is another process. By default, NNI will use the GPU only if there is no another active process in the GPU, if __useActiveGpu__ is set to true, NNI will use the GPU regardless of another processes. This field is not applicable for NNI on Windows.
+  
+
 * __machineList__
 
   __machineList__ should be set if __trainingServicePlatform__ is set to remote, or it should be empty.
@@ -404,6 +437,18 @@ machineList:
   * __passphrase__
 
     __passphrase__ is used to protect ssh key, which could be empty if users don't have passphrase.
+
+  * __gpuIndices__
+  
+    __gpuIndices__ is used to specify designated GPU devices for NNI on this remote machine, if it is set, only the specified GPU devices are used for NNI trial jobs. Single or multiple GPU indices can be specified, multiple GPU indices are seperated by comma(,), such as `1` or  `0,1,3`.
+
+  * __maxTrialNumPerGpu__
+  
+    __maxTrialNumPerGpu__ is used to specify the max concurrency trial number on a GPU device.
+
+  * __useActiveGpu__
+  
+    __useActiveGpu__ is used to specify whether to use a GPU if there is another process. By default, NNI will use the GPU only if there is no another active process in the GPU, if __useActiveGpu__ is set to true, NNI will use the GPU regardless of another processes. This field is not applicable for NNI on Windows.
 
 * __kubeflowConfig__:
 
@@ -559,7 +604,7 @@ machineList:
 
 * __remote mode__
 
-  If run trial jobs in remote machine, users could specify the remote mahcine information as fllowing format:
+  If run trial jobs in remote machine, users could specify the remote machine information as following format:
 
   ```yaml
   authorName: test

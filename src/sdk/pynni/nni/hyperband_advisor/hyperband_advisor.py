@@ -21,7 +21,6 @@
 hyperband_advisor.py
 """
 
-from enum import Enum, unique
 import sys
 import math
 import copy
@@ -32,18 +31,15 @@ import json_tricks
 from nni.protocol import CommandType, send
 from nni.msg_dispatcher_base import MsgDispatcherBase
 from nni.common import init_logger
-from .. import parameter_expressions
+from nni.utils import NodeType, OptimizeMode, extract_scalar_reward, randint_to_quniform
+import nni.parameter_expressions as parameter_expressions
 
 _logger = logging.getLogger(__name__)
 
 _next_parameter_id = 0
-_KEY = 'STEPS'
+_KEY = 'TRIAL_BUDGET'
+_epsilon = 1e-6
 
-@unique
-class OptimizeMode(Enum):
-    """Oprimize Mode class"""
-    Minimize = 'minimize'
-    Maximize = 'maximize'
 
 def create_parameter_id():
     """Create an id
@@ -81,7 +77,7 @@ def create_bracket_parameter_id(brackets_id, brackets_curr_decay, increased_id=-
                           increased_id])
     return params_id
 
-def json2paramater(ss_spec, random_state):
+def json2parameter(ss_spec, random_state):
     """Randomly generate values for hyperparameters from hyperparameter space i.e., x.
     
     Parameters
@@ -97,23 +93,23 @@ def json2paramater(ss_spec, random_state):
         Parameters in this experiment
     """
     if isinstance(ss_spec, dict):
-        if '_type' in ss_spec.keys():
-            _type = ss_spec['_type']
-            _value = ss_spec['_value']
+        if NodeType.TYPE in ss_spec.keys():
+            _type = ss_spec[NodeType.TYPE]
+            _value = ss_spec[NodeType.VALUE]
             if _type == 'choice':
                 _index = random_state.randint(len(_value))
-                chosen_params = json2paramater(ss_spec['_value'][_index], random_state)
+                chosen_params = json2parameter(ss_spec[NodeType.VALUE][_index], random_state)
             else:
                 chosen_params = eval('parameter_expressions.' + # pylint: disable=eval-used
                                      _type)(*(_value + [random_state]))
         else:
             chosen_params = dict()
             for key in ss_spec.keys():
-                chosen_params[key] = json2paramater(ss_spec[key], random_state)
+                chosen_params[key] = json2parameter(ss_spec[key], random_state)
     elif isinstance(ss_spec, list):
         chosen_params = list()
         for _, subspec in enumerate(ss_spec):
-            chosen_params.append(json2paramater(subspec, random_state))
+            chosen_params.append(json2parameter(subspec, random_state))
     else:
         chosen_params = copy.deepcopy(ss_spec)
     return chosen_params
@@ -141,8 +137,8 @@ class Bracket():
         self.bracket_id = s
         self.s_max = s_max
         self.eta = eta
-        self.n = math.ceil((s_max + 1) * (eta**s) / (s + 1)) # pylint: disable=invalid-name
-        self.r = math.ceil(R / eta**s)                       # pylint: disable=invalid-name
+        self.n = math.ceil((s_max + 1) * (eta**s) / (s + 1) - _epsilon) # pylint: disable=invalid-name
+        self.r = R / eta**s                     # pylint: disable=invalid-name
         self.i = 0
         self.hyper_configs = []         # [ {id: params}, {}, ... ]
         self.configs_perf = []          # [ {id: [seq, acc]}, {}, ... ]
@@ -157,7 +153,7 @@ class Bracket():
 
     def get_n_r(self):
         """return the values of n and r for the next round"""
-        return math.floor(self.n / self.eta**self.i), self.r * self.eta**self.i
+        return math.floor(self.n / self.eta**self.i + _epsilon), math.floor(self.r * self.eta**self.i + _epsilon)
 
     def increase_i(self):
         """i means the ith round. Increase i by 1"""
@@ -245,7 +241,7 @@ class Bracket():
         hyperparameter_configs = dict()
         for _ in range(num):
             params_id = create_bracket_parameter_id(self.bracket_id, self.i)
-            params = json2paramater(searchspace_json, random_state)
+            params = json2parameter(searchspace_json, random_state)
             params[_KEY] = r
             hyperparameter_configs[params_id] = params
         self._record_hyper_configs(hyperparameter_configs)
@@ -267,22 +263,6 @@ class Bracket():
         self.num_configs_to_run.append(len(hyper_configs))
         self.increase_i()
 
-def extract_scalar_reward(value, scalar_key='default'):
-    """
-    Raises
-    ------
-    RuntimeError
-        Incorrect final result: the final result should be float/int,
-        or a dict which has a key named "default" whose value is float/int.
-    """
-    if isinstance(value, float) or isinstance(value, int):
-        reward = value
-    elif isinstance(value, dict) and scalar_key in value and isinstance(value[scalar_key], (float, int)):
-        reward = value[scalar_key]
-    else:
-        raise RuntimeError('Incorrect final result: the final result for %s should be float/int, or a dict which has a key named "default" whose value is float/int.' % str(self.__class__)) 
-    return reward
-
 class Hyperband(MsgDispatcherBase):
     """Hyperband inherit from MsgDispatcherBase rather than Tuner, because it integrates both tuner's functions and assessor's functions.
     This is an implementation that could fully leverage available resources, i.e., high parallelism.
@@ -299,13 +279,13 @@ class Hyperband(MsgDispatcherBase):
     """
     def __init__(self, R, eta=3, optimize_mode='maximize'):
         """B = (s_max + 1)R"""
-        super()
+        super(Hyperband, self).__init__()
         self.R = R                        # pylint: disable=invalid-name
         self.eta = eta
         self.brackets = dict()            # dict of Bracket
         self.generated_hyper_configs = [] # all the configs waiting for run
         self.completed_hyper_configs = [] # all the completed configs
-        self.s_max = math.floor(math.log(self.R, self.eta))
+        self.s_max = math.floor(math.log(self.R, self.eta) + _epsilon)
         self.curr_s = self.s_max
 
         self.searchspace_json = None
@@ -319,7 +299,7 @@ class Hyperband(MsgDispatcherBase):
     def load_checkpoint(self):
         pass
 
-    def save_checkpont(self):
+    def save_checkpoint(self):
         pass
 
     def handle_initialize(self, data):
@@ -332,7 +312,6 @@ class Hyperband(MsgDispatcherBase):
         """
         self.handle_update_search_space(data)
         send(CommandType.Initialized, '')
-        return True
 
     def handle_request_trial_jobs(self, data):
         """
@@ -344,21 +323,11 @@ class Hyperband(MsgDispatcherBase):
         for _ in range(data):
             self._request_one_trial_job()
 
-        return True
-
     def _request_one_trial_job(self):
         """get one trial job, i.e., one hyperparameter configuration."""
         if not self.generated_hyper_configs:
             if self.curr_s < 0:
-                # have tried all configurations
-                ret = {
-                    'parameter_id': '-1_0_0',
-                    'parameter_source': 'algorithm',
-                    'parameters': ''
-                }
-                send(CommandType.NoMoreTrialJobs, json_tricks.dumps(ret))
-                self.credit += 1
-                return True
+                self.curr_s = self.s_max
             _logger.debug('create a new bracket, self.curr_s=%d', self.curr_s)
             self.brackets[self.curr_s] = Bracket(self.curr_s, self.s_max, self.eta, self.R, self.optimize_mode)
             next_n, next_r = self.brackets[self.curr_s].get_n_r()
@@ -379,8 +348,6 @@ class Hyperband(MsgDispatcherBase):
         }
         send(CommandType.NewTrialJob, json_tricks.dumps(ret))
 
-        return True
-
     def handle_update_search_space(self, data):
         """data: JSON object, which is search space
         
@@ -390,9 +357,8 @@ class Hyperband(MsgDispatcherBase):
             number of trial jobs
         """
         self.searchspace_json = data
+        randint_to_quniform(self.searchspace_json)
         self.random_state = np.random.RandomState()
-
-        return True
 
     def handle_trial_end(self, data):
         """
@@ -422,8 +388,6 @@ class Hyperband(MsgDispatcherBase):
                 send(CommandType.NewTrialJob, json_tricks.dumps(ret))
                 self.credit -= 1
 
-        return True
-
     def handle_report_metric_data(self, data):
         """
         Parameters
@@ -449,7 +413,8 @@ class Hyperband(MsgDispatcherBase):
         else:
             raise ValueError('Data type not supported: {}'.format(data['type']))
 
-        return True
-
     def handle_add_customized_trial(self, data):
+        pass
+
+    def handle_import_data(self, data):
         pass

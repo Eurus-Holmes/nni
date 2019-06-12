@@ -30,6 +30,7 @@ import { getLogger, Logger } from '../common/log';
 import { ExperimentProfile, Manager, TrialJobStatistics} from '../common/manager';
 import { ValidationSchemas } from './restValidationSchemas';
 import { NNIRestServer } from './nniRestServer';
+import { getVersion } from '../common/utils';
 
 const expressJoi = require('express-joi-validator');
 
@@ -62,6 +63,7 @@ class NNIRestHandler {
         this.checkStatus(router);
         this.getExperimentProfile(router);
         this.updateExperimentProfile(router);
+        this.importData(router);
         this.startExperiment(router);
         this.getTrialJobStatistics(router);
         this.setClusterMetaData(router);
@@ -70,6 +72,7 @@ class NNIRestHandler {
         this.addTrialJob(router);
         this.cancelTrialJob(router);
         this.getMetricData(router);
+        this.exportData(router);
 
         // Express-joi-validator configuration
         router.use((err: any, req: Request, res: Response, next: any) => {
@@ -104,8 +107,8 @@ class NNIRestHandler {
 
     private version(router: Router): void {
         router.get('/version', async (req: Request, res: Response) => {
-            const pkg = await import(path.join(__dirname, '..', 'package.json'));
-            res.send(pkg.version);
+            const version = await getVersion();
+            res.send(version);
         });
     }
 
@@ -137,6 +140,16 @@ class NNIRestHandler {
     private updateExperimentProfile(router: Router): void {
         router.put('/experiment', expressJoi(ValidationSchemas.UPDATEEXPERIMENT), (req: Request, res: Response) => {
             this.nniManager.updateExperimentProfile(req.body, req.query.update_type).then(() => {
+                res.send();
+            }).catch((err: Error) => {
+                this.handle_error(err, res);
+            });
+        });
+    }
+    
+    private importData(router: Router): void {
+        router.post('/experiment/import-data', (req: Request, res: Response) => {
+            this.nniManager.importData(JSON.stringify(req.body)).then(() => {
                 res.send();
             }).catch((err: Error) => {
                 this.handle_error(err, res);
@@ -190,7 +203,7 @@ class NNIRestHandler {
                 res.send();
             } catch (err) {
                 // setClusterMetata is a step of initialization, so any exception thrown is a fatal
-                this.handle_error(err, res, true);
+                this.handle_error(NNIError.FromError(err), res, true);
             }
         });
     }
@@ -243,6 +256,16 @@ class NNIRestHandler {
         router.get('/metric-data/:job_id*?', async (req: Request, res: Response) => {
             this.nniManager.getMetricData(req.params.job_id, req.query.type).then((metricsData: MetricDataRecord[]) => {
                 res.send(metricsData);
+            }).catch((err: Error) => {
+                this.handle_error(err, res);
+            });
+        });
+    }
+
+    private exportData(router: Router): void {
+        router.get('/export-data', (req: Request, res: Response) => {
+            this.nniManager.exportData().then((exportedData: string) => {
+                res.send(exportedData);
             }).catch((err: Error) => {
                 this.handle_error(err, res);
             });

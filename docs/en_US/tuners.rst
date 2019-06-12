@@ -11,6 +11,8 @@ In NNI, we support two approaches to set the tuner: first is directly use builti
 For details, please refer to the following tutorials:
 
 ..  toctree::
-    Builtin Tuners<Builtin_Tuner>
-    Customized Tuners<Customize_Tuner>
-    Customized Advisor<Customize_Advisor>
+    :maxdepth: 2
+
+    Builtin Tuners<BuiltinTuner>
+    Customized Tuners<CustomizeTuner>
+    Customized Advisor<CustomizeAdvisor>

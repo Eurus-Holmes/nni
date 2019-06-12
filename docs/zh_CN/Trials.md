@@ -43,7 +43,7 @@ RECEIVED_PARAMS = nni.get_next_parameter()
 nni.report_intermediate_result(metrics)
 ```
 
-`指标`可以是任意的 Python 对象。 如果使用了 NNI 内置的 Tuner/Assessor，`指标`只可以是两种类型：1) 数值类型，如 float、int， 2) dict 对象，其中必须由键名为 `default`，值为数值的项目。 `指标`会发送给[Assessor](Builtin_Assessors.md)。 通常，`指标`是损失值或精度。
+`指标`可以是任意的 Python 对象。 如果使用了 NNI 内置的 Tuner/Assessor，`指标`只可以是两种类型：1) 数值类型，如 float、int， 2) dict 对象，其中必须由键名为 `default`，值为数值的项目。 `指标`会发送给[Assessor](BuiltinAssessors.md)。 通常，`指标`是损失值或精度。
 
 * 返回配置的最终性能
 
@@ -51,7 +51,7 @@ nni.report_intermediate_result(metrics)
 nni.report_final_result(metrics)
 ```
 
-`指标`也可以是任意的 Python 对象。 如果使用了内置的 Tuner/Assessor，`指标`格式和 `report_intermediate_result` 中一样，这个数值表示模型的性能，如精度、损失值等。 `指标`会发送给 [Tuner](Builtin_Tuner.md)。
+`指标`也可以是任意的 Python 对象。 如果使用了内置的 Tuner/Assessor，`指标`格式和 `report_intermediate_result` 中一样，这个数值表示模型的性能，如精度、损失值等。 `指标`会发送给 [Tuner](BuiltinTuner.md)。
 
 ### 第三步：启用 NNI API
 
@@ -96,7 +96,7 @@ with tf.Session() as sess:
     batch_size = 128
     for i in range(10000):
         batch = mnist.train.next_batch(batch_size)
-+       """@nni.variable(nni.choice(1, 5), name=dropout_rate)"""
++       """@nni.variable(nni.choice(0.1, 0.5), name=dropout_rate)"""
         dropout_rate = 0.5
         mnist_network.train_step.run(feed_dict={mnist_network.images: batch[0],
                                                 mnist_network.labels: batch[1],
@@ -130,12 +130,40 @@ Annotation 的语法和用法等，参考 [Annotation](AnnotationSpec.md)。
     useAnnotation: true
     
 
+## Trial 存放在什么地方？
+
+### 本机模式
+
+每个 Trial 都有单独的目录来输出自己的数据。 在每次 Trial 运行后，环境变量 `NNI_OUTPUT_DIR` 定义的目录都会被导出。 在这个目录中可以看到 Trial 的代码、数据和日志。 此外，Trial 的日志（包括 stdout）还会被重定向到此目录中的 `trial.log` 文件。
+
+如果使用了 Annotation 方法，转换后的 Trial 代码会存放在另一个临时目录中。 可以在 `run.sh` 文件中的 `NNI_OUTPUT_DIR` 变量找到此目录。 文件中的第二行（即：`cd`）会切换到代码所在的实际路径。 参考 `run.sh` 文件样例：
+
+```shell
+#!/bin/bash
+cd /tmp/user_name/nni/annotation/tmpzj0h72x6 #This is the actual directory
+export NNI_PLATFORM=local
+export NNI_SYS_DIR=/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$
+export NNI_TRIAL_JOB_ID=nrbb2
+export NNI_OUTPUT_DIR=/home/user_name/nni/experiments/$eperiment_id$/trials/$trial_id$
+export NNI_TRIAL_SEQ_ID=1
+export MULTI_PHASE=false
+export CUDA_VISIBLE_DEVICES=
+eval python3 mnist.py 2>/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$/stderr
+echo $? `date +%s000` >/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$/.nni/state
+```
+
+### 其它模式
+
+当 Trial 运行在 OpenPAI 这样的远程服务器上时，`NNI_OUTPUT_DIR` 仅会指向 Trial 的输出目录，而 `run.sh` 不会在此目录中。 `trial.log` 文件会被复制回本机的 Trial 目录中。目录的默认位置在 `~/nni/experiments/$experiment_id$/trials/$trial_id$/` 。
+
+详细信息，可参考[调试指南](HowToDebug.md)。
+
 <a name="more-examples"></a>
 
 ## 更多 Trial 的样例
 
-* [MNIST 样例](mnist_examples.md)
-* [为 CIFAR 10 分类找到最佳的 optimizer](cifar10_examples.md)
-* [如何在 NNI 调优 SciKit-learn 的参数](sklearn_examples.md)
-* [在阅读理解上使用自动模型架构搜索。](SQuAD_evolution_examples.md)
-* [如何在 NNI 上调优 GBDT](gbdt_example.md)
+* [MNIST 样例](MnistExamples.md)
+* [为 CIFAR 10 分类找到最佳的 optimizer](Cifar10Examples.md)
+* [如何在 NNI 调优 SciKit-learn 的参数](SklearnExamples.md)
+* [在阅读理解上使用自动模型架构搜索。](SquadEvolutionExamples.md)
+* [如何在 NNI 上调优 GBDT](GbdtExample.md)

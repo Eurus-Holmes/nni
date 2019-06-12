@@ -27,10 +27,15 @@ if os_type == 'Linux':
     os_name = 'POSIX :: Linux'
 elif os_type == 'Darwin':
     os_name = 'MacOS'
+elif os_type == 'Windows':
+    os_name = 'Microsoft :: Windows'
 else:
     raise NotImplementedError('current platform {} not supported'.format(os_type))
 
 data_files = [('bin', ['node-{}-x64/bin/node'.format(os_type.lower())])]
+if os_type == 'Windows':
+    data_files = [('.\Scripts', ['node-{}/node.exe'.format(os_type.lower())])]
+
 for (dirpath, dirnames, filenames) in walk('./nni'):
     files = [path.normpath(path.join(dirpath, filename)) for filename in filenames]
     data_files.append((path.normpath(dirpath), files))
@@ -56,10 +61,11 @@ setuptools.setup(
         'nni_gpu_tool': '../../tools/nni_gpu_tool',
         'nni': '../../src/sdk/pynni/nni'
     },
+    package_data = {'nni': ['**/requirements.txt']},
     python_requires = '>=3.5',
     install_requires = [
         'schema',
-        'pyyaml',
+        'ruamel.yaml',
         'psutil',
         'requests',
         'astor',
@@ -68,7 +74,9 @@ setuptools.setup(
         'json_tricks',
         'numpy',
         'scipy',
-        'coverage'
+        'coverage',
+        'colorama',
+        'sklearn'
     ],
     classifiers = [
         'Programming Language :: Python :: 3',

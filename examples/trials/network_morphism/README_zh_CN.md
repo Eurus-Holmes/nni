@@ -6,7 +6,7 @@ Network Morphism （网络形态）是内置的 Tuner，它使用了网络形态
 
 ### 1. 训练框架支持
 
-网络形态当前基于框架，还没有实现与框架脱离的方法。 当前支持 Pytorch 和 Keras。 如果熟悉 JSON 中间格式，可以在自定义的训练框架中生成自己的模型。 随后，我们会将中间结果从 JSON 转换为 ONNX，从而能够成为[标准的中间表示](https://github.com/onnx/onnx/blob/master/docs/IR.md)。
+网络形态当前基于框架，还没有实现与框架脱离的方法。 当前支持 PyTorch 和 Keras。 如果熟悉 JSON 中间格式，可以在自定义的训练框架中生成自己的模型。 随后，我们会将中间结果从 JSON 转换为 ONNX，从而能够成为[标准的中间表示](https://github.com/onnx/onnx/blob/master/docs/IR.md)。
 
 ### 2. 安装需求
 
@@ -99,10 +99,10 @@ nnictl create --config config.yml
 
 `Fashion-MNIST` 是来自 [Zalando](https://jobs.zalando.com/tech/) 文章的图片 — 有 60,000 个样例的训练集和 10,000 个样例的测试集。 每个样例是 28x28 的灰度图，分为 10 个类别。 由于 MNIST 数据集过于简单，该数据集现在开始被广泛使用，用来替换 MNIST 作为基准数据集。
 
-这里有两个样例，[FashionMNIST-keras.py](../../../../examples/trials/network_morphism/FashionMNIST/FashionMNIST_keras.py) 和 [FashionMNIST-pytorch.py](../../../../examples/trials/network_morphism/FashionMNIST/FashionMNIST_pytorch.py)。 注意，在 `config.yml` 中，需要为此数据集修改 `input_width` 为 28，以及 `input_channel` 为 1。
+这里有两个样例，[FashionMNIST-keras.py](./FashionMNIST/FashionMNIST_keras.py) 和 [FashionMNIST-pytorch.py](./FashionMNIST/FashionMNIST_pytorch.py)。 注意，在 `config.yml` 中，需要为此数据集修改 `input_width` 为 28，以及 `input_channel` 为 1。
 
 ### Cifar10
 
 `CIFAR-10` 数据集 [Canadian Institute For Advanced Research](https://www.cifar.ca/) 是广泛用于机器学习和视觉算法训练的数据集。 它是机器学习领域最广泛使用的数据集之一。 CIFAR-10 数据集包含了 60,000 张 32x32 的彩色图片，分为 10 类。
 
-这里有两个样例，[cifar10-keras.py](../../../../examples/trials/network_morphism/cifar10/cifar10_keras.py) 和 [cifar10-pytorch.py](../../../../examples/trials/network_morphism/cifar10/cifar10_pytorch.py)。 在 `config.yml` 中，该数据集 `input_width` 的值是 32，并且 `input_channel` 是 3。
+这里有两个样例，[cifar10-keras.py](./cifar10/cifar10_keras.py) 和 [cifar10-pytorch.py](./cifar10/cifar10_pytorch.py)。 在 `config.yml` 中，该数据集 `input_width` 的值是 32，并且 `input_channel` 是 3。

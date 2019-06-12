@@ -2,5 +2,6 @@
 =====================
 
 ..  toctree::
-    多阶段<multiPhase>
-    高级网络架构搜索（AdvancedNAS）<AdvancedNAS>
+    多阶段<MultiPhase>
+    高级网络架构搜索<AdvancedNas>
+    NAS 编程接口<GeneralNasInterfaces>

@@ -41,14 +41,14 @@ RECEIVED_PARAMS = nni.get_next_parameter()
 ```python
 nni.report_intermediate_result(metrics)
 ```
-`metrics` could be any python object. If users use NNI built-in tuner/assessor, `metrics` can only have two formats: 1) a number e.g., float, int, 2) a dict object that has a key named `default` whose value is a number. This `metrics` is reported to [assessor](Builtin_Assessors.md). Usually, `metrics` could be periodically evaluated loss or accuracy.
+`metrics` could be any python object. If users use NNI built-in tuner/assessor, `metrics` can only have two formats: 1) a number e.g., float, int, 2) a dict object that has a key named `default` whose value is a number. This `metrics` is reported to [assessor](BuiltinAssessors.md). Usually, `metrics` could be periodically evaluated loss or accuracy.
 
 - Report performance of the configuration
 
 ```python
 nni.report_final_result(metrics)
 ```
-`metrics` also could be any python object. If users use NNI built-in tuner/assessor, `metrics` follows the same format rule as that in `report_intermediate_result`, the number indicates the model's performance, for example, the model's accuracy, loss etc. This `metrics` is reported to [tuner](Builtin_Tuner.md).
+`metrics` also could be any python object. If users use NNI built-in tuner/assessor, `metrics` follows the same format rule as that in `report_intermediate_result`, the number indicates the model's performance, for example, the model's accuracy, loss etc. This `metrics` is reported to [tuner](BuiltinTuner.md).
 
 ### Step 3 - Enable NNI API
 
@@ -92,7 +92,7 @@ with tf.Session() as sess:
     batch_size = 128
     for i in range(10000):
         batch = mnist.train.next_batch(batch_size)
-+       """@nni.variable(nni.choice(1, 5), name=dropout_rate)"""
++       """@nni.variable(nni.choice(0.1, 0.5), name=dropout_rate)"""
         dropout_rate = 0.5
         mnist_network.train_step.run(feed_dict={mnist_network.images: batch[0],
                                                 mnist_network.labels: batch[1],
@@ -125,11 +125,39 @@ In the YAML configure file, you need to set *useAnnotation* to true to enable NN
 useAnnotation: true
 ```
 
+
+## Where are my trials?
+
+### Local Mode
+
+In NNI, every trial has a dedicated directory for them to output their own data. In each trial, an environment variable called `NNI_OUTPUT_DIR` is exported. Under this directory, you could find each trial's code, data and other possible log. In addition, each trial's log (including stdout) will be re-directed to a file named `trial.log` under that directory.
+
+If NNI Annotation is used, trial's converted code is in another temporary directory. You can check that in a file named `run.sh` under the directory indicated by `NNI_OUTPUT_DIR`. The second line (i.e., the `cd` command) of this file will change directory to the actual directory where code is located. Below is an example of `run.sh`:
+```shell
+#!/bin/bash
+cd /tmp/user_name/nni/annotation/tmpzj0h72x6 #This is the actual directory
+export NNI_PLATFORM=local
+export NNI_SYS_DIR=/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$
+export NNI_TRIAL_JOB_ID=nrbb2
+export NNI_OUTPUT_DIR=/home/user_name/nni/experiments/$eperiment_id$/trials/$trial_id$
+export NNI_TRIAL_SEQ_ID=1
+export MULTI_PHASE=false
+export CUDA_VISIBLE_DEVICES=
+eval python3 mnist.py 2>/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$/stderr
+echo $? `date +%s000` >/home/user_name/nni/experiments/$experiment_id$/trials/$trial_id$/.nni/state
+```
+
+### Other Modes
+
+When runing trials on other platform like remote machine or PAI, the environment variable `NNI_OUTPUT_DIR` only refers to the output directory of the trial, while trial code and `run.sh` might not be there. However, the `trial.log` will be transmitted back to local machine in trial's directory, which defaults to `~/nni/experiments/$experiment_id$/trials/$trial_id$/`
+
+For more information, please refer to [HowToDebug](HowToDebug.md)
+
 <a name="more-examples"></a>
 ## More Trial Examples
 
-* [MNIST examples](mnist_examples.md)
-* [Finding out best optimizer for Cifar10 classification](cifar10_examples.md)
-* [How to tune Scikit-learn on NNI](sklearn_examples.md)
-* [Automatic Model Architecture Search for Reading Comprehension.](SQuAD_evolution_examples.md)
-* [Tuning GBDT on NNI](gbdt_example.md)
+* [MNIST examples](MnistExamples.md)
+* [Finding out best optimizer for Cifar10 classification](Cifar10Examples.md)
+* [How to tune Scikit-learn on NNI](SklearnExamples.md)
+* [Automatic Model Architecture Search for Reading Comprehension.](SquadEvolutionExamples.md)
+* [Tuning GBDT on NNI](GbdtExample.md)

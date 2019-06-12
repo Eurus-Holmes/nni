@@ -6,6 +6,8 @@
 
 * 查看 Experiment 的配置和搜索空间内容。
 * 支持下载 Experiment 结果。
+* 支持导出 nni-manager 和 dispatcher 的日志文件。
+* 如果有任何问题，可以点击 “Feedback” 告诉我们。
 
 ![](../img/webui-img/over1.png)
 
@@ -34,6 +36,16 @@
 
 ![](../img/trial_duration.png)
 
+## 查看 Trial 中间结果
+
+单击 "Intermediate Result" 标签查看折线图。
+
+![](../img/webui-img/trials_intermeidate.png)
+
+该图有筛选功能。 点击筛选按钮， 在第一个输入框中输入关注点的序号， 在第二个输入框中输入中间结果的范围，选出需要的数据。
+
+![](../img/webui-img/filter_intermediate.png)
+
 ## 查看 Trial 状态
 
 点击 "Trials Detail" 标签查看所有 Trial 的状态。 特别是：
@@ -41,6 +53,14 @@
 * Trial 详情：Trial 的 id，持续时间，开始时间，结束时间，状态，精度和搜索空间。
 
 ![](../img/webui-img/detail-local.png)
+
+* "Add column" 按钮可选择在表格中显示的列。 如果 Experiment 的最终结果是 dict，则可以在表格中查看其它键。
+
+![](../img/webui-img/addColumn.png)
+
+* 可使用 "Copy as python" 按钮来拷贝 Trial 的参数。
+
+![](../img/webui-img/copyParameter.png)
 
 * 如果在 OpenPAI 或 Kubeflow 平台上运行，还可以看到 hdfsLog。
 
