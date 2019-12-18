@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -30,27 +14,30 @@ class ExperimentStartupInfo {
     private newExperiment: boolean = true;
     private basePort: number = -1;
     private initialized: boolean = false;
-    private initTrialSequenceID: number = 0;
     private logDir: string = '';
     private logLevel: string = '';
+    private readonly: boolean = false;
 
-    public setStartupInfo(newExperiment: boolean, experimentId: string, basePort: number, logDir?: string, logLevel?: string): void {
+    public setStartupInfo(newExperiment: boolean, experimentId: string, basePort: number, logDir?: string, logLevel?: string, readonly?: boolean): void {
         assert(!this.initialized);
         assert(experimentId.trim().length > 0);
-
         this.newExperiment = newExperiment;
         this.experimentId = experimentId;
         this.basePort = basePort;
         this.initialized = true;
 
         if (logDir !== undefined && logDir.length > 0) {
-            this.logDir = path.join(logDir, getExperimentId());
+            this.logDir = path.join(path.normalize(logDir), this.getExperimentId());
         } else {
-            this.logDir = path.join(os.homedir(), 'nni', 'experiments', getExperimentId());
+            this.logDir = path.join(os.homedir(), 'nni', 'experiments', this.getExperimentId());
         }
 
         if (logLevel !== undefined && logLevel.length > 1) {
             this.logLevel = logLevel;
+        }
+
+        if (readonly !== undefined) {
+            this.readonly = readonly;
         }
     }
 
@@ -84,15 +71,10 @@ class ExperimentStartupInfo {
         return this.logLevel;
     }
 
-    public setInitTrialSequenceId(initSequenceId: number): void {
-        assert(this.initialized);
-        this.initTrialSequenceID = initSequenceId;
-    }
-
-    public getInitTrialSequenceId(): number {
+    public isReadonly(): boolean {
         assert(this.initialized);
 
-        return this.initTrialSequenceID;
+        return this.readonly;
     }
 }
 
@@ -108,23 +90,19 @@ function isNewExperiment(): boolean {
     return component.get<ExperimentStartupInfo>(ExperimentStartupInfo).isNewExperiment();
 }
 
-function setInitTrialSequenceId(initSequenceId: number): void {
-    component.get<ExperimentStartupInfo>(ExperimentStartupInfo).setInitTrialSequenceId(initSequenceId);
-}
-
-function getInitTrialSequenceId(): number {
-    return component.get<ExperimentStartupInfo>(ExperimentStartupInfo).getInitTrialSequenceId();
-}
-
 function getExperimentStartupInfo(): ExperimentStartupInfo {
     return component.get<ExperimentStartupInfo>(ExperimentStartupInfo);
 }
 
 function setExperimentStartupInfo(
-    newExperiment: boolean, experimentId: string, basePort: number, logDir?: string, logLevel?: string): void {
+    newExperiment: boolean, experimentId: string, basePort: number, logDir?: string, logLevel?: string, readonly?: boolean): void {
     component.get<ExperimentStartupInfo>(ExperimentStartupInfo)
-    .setStartupInfo(newExperiment, experimentId, basePort, logDir, logLevel);
+    .setStartupInfo(newExperiment, experimentId, basePort, logDir, logLevel, readonly);
+}
+
+function isReadonly(): boolean {
+    return component.get<ExperimentStartupInfo>(ExperimentStartupInfo).isReadonly();
 }
 
 export { ExperimentStartupInfo, getBasePort, getExperimentId, isNewExperiment, getExperimentStartupInfo,
-    setExperimentStartupInfo, setInitTrialSequenceId, getInitTrialSequenceId };
+    setExperimentStartupInfo, isReadonly };

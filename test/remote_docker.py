@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 import os
 import argparse
 from subprocess import check_output, check_call
@@ -54,7 +57,7 @@ def start_container(image, name, nnimanager_os):
         else:
             return '/tmp/nni/dist/{0}'.format(wheel_name)
         
-    pip_cmds = ['docker', 'exec', name, 'python3', '-m', 'pip', 'install', '--upgrade', 'pip']
+    pip_cmds = ['docker', 'exec', name, 'python3', '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools==39.1.0']
     check_call(pip_cmds)
     sdk_cmds = ['docker', 'exec', name, 'python3', '-m', 'pip', 'install', get_dist(wheel_name)]
     check_call(sdk_cmds)
@@ -62,7 +65,7 @@ def start_container(image, name, nnimanager_os):
         file.write(str(port))
 
 def stop_container(name):
-    '''Stop docker container''' 
+    '''Stop docker container'''
     stop_cmds = ['docker', 'container', 'stop', name]
     check_call(stop_cmds)
     rm_cmds = ['docker', 'container', 'rm', name]

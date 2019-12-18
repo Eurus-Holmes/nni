@@ -1,19 +1,5 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import logging
 import datetime
@@ -29,13 +15,13 @@ class CurvefittingAssessor(Assessor):
 
     Parameters
     ----------
-    epoch_num: int
+    epoch_num : int
         The total number of epoch
-    optimize_mode: str
+    optimize_mode : str
         optimize mode, 'maximize' or 'minimize'
-    start_step: int
+    start_step : int
         only after receiving start_step number of reported intermediate results
-    threshold: float
+    threshold : float
         The threshold that we decide to early stop the worse performance curve.
     """
     def __init__(self, epoch_num=20, optimize_mode='maximize', start_step=6, threshold=0.95, gap=1):
@@ -50,7 +36,7 @@ class CurvefittingAssessor(Assessor):
             self.higher_better = False
         else:
             self.higher_better = True
-            logger.warning('unrecognized optimize_mode', optimize_mode)
+            logger.warning('unrecognized optimize_mode %s', optimize_mode)
         # Start forecasting when historical data reaches start step
         self.start_step = start_step
         # Record the compared threshold
@@ -67,12 +53,12 @@ class CurvefittingAssessor(Assessor):
 
     def trial_end(self, trial_job_id, success):
         """update the best performance of completed trial job
-        
+
         Parameters
         ----------
-        trial_job_id: int
+        trial_job_id : int
             trial job id
-        success: bool
+        success : bool
             True if succssfully finish the experiment, False otherwise
         """
         if success:
@@ -81,18 +67,18 @@ class CurvefittingAssessor(Assessor):
             else:
                 self.set_best_performance = True
                 self.completed_best_performance = self.trial_history[-1]
-            logger.info('Updated complted best performance, trial job id:', trial_job_id)
+            logger.info('Updated complted best performance, trial job id: %s', trial_job_id)
         else:
-            logger.info('No need to update, trial job id: ', trial_job_id)
+            logger.info('No need to update, trial job id: %s', trial_job_id)
 
     def assess_trial(self, trial_job_id, trial_history):
         """assess whether a trial should be early stop by curve fitting algorithm
 
         Parameters
         ----------
-        trial_job_id: int
+        trial_job_id : int
             trial job id
-        trial_history: list
+        trial_history : list
             The history performance matrix of each trial
 
         Returns
@@ -105,14 +91,13 @@ class CurvefittingAssessor(Assessor):
         Exception
             unrecognize exception in curvefitting_assessor
         """
-        self.trial_job_id = trial_job_id
         self.trial_history = trial_history
         if not self.set_best_performance:
             return AssessResult.Good
         curr_step = len(trial_history)
         if curr_step < self.start_step:
             return AssessResult.Good
-        
+
         if trial_job_id in self.last_judgment_num.keys() and curr_step - self.last_judgment_num[trial_job_id] < self.gap:
             return AssessResult.Good
         self.last_judgment_num[trial_job_id] = curr_step
@@ -122,7 +107,7 @@ class CurvefittingAssessor(Assessor):
             # Predict the final result
             curvemodel = CurveModel(self.target_pos)
             predict_y = curvemodel.predict(trial_history)
-            logger.info('Prediction done. Trial job id = ', trial_job_id, '. Predict value = ', predict_y)
+            logger.info('Prediction done. Trial job id = %s. Predict value = %s', trial_job_id, predict_y)
             if predict_y is None:
                 logger.info('wait for more information to predict precisely')
                 return AssessResult.Good
@@ -130,7 +115,10 @@ class CurvefittingAssessor(Assessor):
 
             end_time = datetime.datetime.now()
             if (end_time - start_time).seconds > 60:
-                logger.warning('Curve Fitting Assessor Runtime Exceeds 60s, Trial Id = ', self.trial_job_id, 'Trial History = ', self.trial_history)
+                logger.warning(
+                    'Curve Fitting Assessor Runtime Exceeds 60s, Trial Id = %s Trial History = %s',
+                    trial_job_id, self.trial_history
+                )
 
             if self.higher_better:
                 if predict_y > standard_performance:
@@ -142,4 +130,4 @@ class CurvefittingAssessor(Assessor):
                 return AssessResult.Bad
 
         except Exception as exception:
-            logger.exception('unrecognize exception in curvefitting_assessor', exception)
+            logger.exception('unrecognize exception in curvefitting_assessor %s', exception)

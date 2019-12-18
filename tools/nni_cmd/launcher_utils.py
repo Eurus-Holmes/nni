@@ -1,30 +1,13 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import os
 import json
-from .config_schema import LOCAL_CONFIG_SCHEMA, REMOTE_CONFIG_SCHEMA, PAI_CONFIG_SCHEMA, KUBEFLOW_CONFIG_SCHEMA, FRAMEWORKCONTROLLER_CONFIG_SCHEMA, \
-tuner_schema_dict, advisor_schema_dict, assessor_schema_dict               
-from schema import SchemaMissingKeyError, SchemaForbiddenKeyError, SchemaUnexpectedTypeError, SchemaWrongKeyError, SchemaError
-from .common_utils import get_json_content, print_error, print_warning, print_normal
-from schema import Schema, And, Use, Optional, Regex, Or
+from schema import SchemaError
+from schema import Schema
+from .config_schema import LOCAL_CONFIG_SCHEMA, REMOTE_CONFIG_SCHEMA, PAI_CONFIG_SCHEMA, KUBEFLOW_CONFIG_SCHEMA,\
+                           FRAMEWORKCONTROLLER_CONFIG_SCHEMA, tuner_schema_dict, advisor_schema_dict, assessor_schema_dict
+from .common_utils import print_error, print_warning, print_normal
 
 def expand_path(experiment_config, key):
     '''Change '~' to user home directory'''
@@ -56,19 +39,52 @@ def parse_path(experiment_config, config_path):
     expand_path(experiment_config, 'searchSpacePath')
     if experiment_config.get('trial'):
         expand_path(experiment_config['trial'], 'codeDir')
+        if experiment_config['trial'].get('authFile'):
+            expand_path(experiment_config['trial'], 'authFile')
+        if experiment_config['trial'].get('ps'):
+            if experiment_config['trial']['ps'].get('privateRegistryAuthPath'):
+                expand_path(experiment_config['trial']['ps'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('master'):
+            if experiment_config['trial']['master'].get('privateRegistryAuthPath'):
+                expand_path(experiment_config['trial']['master'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('worker'):
+            if experiment_config['trial']['worker'].get('privateRegistryAuthPath'):
+                expand_path(experiment_config['trial']['worker'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('taskRoles'):
+            for index in range(len(experiment_config['trial']['taskRoles'])):
+                if experiment_config['trial']['taskRoles'][index].get('privateRegistryAuthPath'):
+                    expand_path(experiment_config['trial']['taskRoles'][index], 'privateRegistryAuthPath')
     if experiment_config.get('tuner'):
         expand_path(experiment_config['tuner'], 'codeDir')
     if experiment_config.get('assessor'):
         expand_path(experiment_config['assessor'], 'codeDir')
     if experiment_config.get('advisor'):
         expand_path(experiment_config['advisor'], 'codeDir')
-    
+    if experiment_config.get('machineList'):
+        for index in range(len(experiment_config['machineList'])):
+            expand_path(experiment_config['machineList'][index], 'sshKeyPath')
+
     #if users use relative path, convert it to absolute path
     root_path = os.path.dirname(config_path)
     if experiment_config.get('searchSpacePath'):
         parse_relative_path(root_path, experiment_config, 'searchSpacePath')
     if experiment_config.get('trial'):
         parse_relative_path(root_path, experiment_config['trial'], 'codeDir')
+        if experiment_config['trial'].get('authFile'):
+            parse_relative_path(root_path, experiment_config['trial'], 'authFile')
+        if experiment_config['trial'].get('ps'):
+            if experiment_config['trial']['ps'].get('privateRegistryAuthPath'):
+                parse_relative_path(root_path, experiment_config['trial']['ps'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('master'):
+            if experiment_config['trial']['master'].get('privateRegistryAuthPath'):
+                parse_relative_path(root_path, experiment_config['trial']['master'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('worker'):
+            if experiment_config['trial']['worker'].get('privateRegistryAuthPath'):
+                parse_relative_path(root_path, experiment_config['trial']['worker'], 'privateRegistryAuthPath')
+        if experiment_config['trial'].get('taskRoles'):
+            for index in range(len(experiment_config['trial']['taskRoles'])):
+                if experiment_config['trial']['taskRoles'][index].get('privateRegistryAuthPath'):
+                    parse_relative_path(root_path, experiment_config['trial']['taskRoles'][index], 'privateRegistryAuthPath')
     if experiment_config.get('tuner'):
         parse_relative_path(root_path, experiment_config['tuner'], 'codeDir')
     if experiment_config.get('assessor'):
@@ -80,8 +96,8 @@ def parse_path(experiment_config, config_path):
             parse_relative_path(root_path, experiment_config['machineList'][index], 'sshKeyPath')
 
 def validate_search_space_content(experiment_config):
-    '''Validate searchspace content, 
-       if the searchspace file is not json format or its values does not contain _type and _value which must be specified, 
+    '''Validate searchspace content,
+       if the searchspace file is not json format or its values does not contain _type and _value which must be specified,
        it will not be a valid searchspace file'''
     try:
         search_space_content = json.load(open(experiment_config.get('searchSpacePath'), 'r'))
@@ -110,7 +126,7 @@ def validate_kubeflow_operators(experiment_config):
             if experiment_config.get('trial').get('master') is None:
                 print_error('kubeflow with pytorch-operator must set master')
                 exit(1)
-        
+
         if experiment_config.get('kubeflowConfig').get('storage') == 'nfs':
             if experiment_config.get('kubeflowConfig').get('nfs') is None:
                 print_error('please set nfs configuration!')
@@ -131,11 +147,11 @@ def validate_common_content(experiment_config):
         print_error('Please set correct trainingServicePlatform!')
         exit(1)
     schema_dict = {
-            'local': LOCAL_CONFIG_SCHEMA,
-            'remote': REMOTE_CONFIG_SCHEMA,
-            'pai': PAI_CONFIG_SCHEMA,
-            'kubeflow': KUBEFLOW_CONFIG_SCHEMA,
-            'frameworkcontroller': FRAMEWORKCONTROLLER_CONFIG_SCHEMA
+        'local': LOCAL_CONFIG_SCHEMA,
+        'remote': REMOTE_CONFIG_SCHEMA,
+        'pai': PAI_CONFIG_SCHEMA,
+        'kubeflow': KUBEFLOW_CONFIG_SCHEMA,
+        'frameworkcontroller': FRAMEWORKCONTROLLER_CONFIG_SCHEMA
         }
     separate_schema_dict = {
         'tuner': tuner_schema_dict,
@@ -165,12 +181,9 @@ def validate_common_content(experiment_config):
                     Schema({**separate_schema_dict[separate_key]['customized']}).validate(experiment_config[separate_key])
     except SchemaError as error:
         print_error('Your config file is not correct, please check your config file content!')
-        if error.__str__().__contains__('Wrong key'):
-            print_error(' '.join(error.__str__().split()[:3]))
-        else:
-            print_error(error)
+        print_error(error.code)
         exit(1)
-    
+
     #set default value
     if experiment_config.get('maxExecDuration') is None:
         experiment_config['maxExecDuration'] = '999d'
@@ -253,6 +266,14 @@ def validate_pai_trial_conifg(experiment_config):
         experiment_config['trial']['shmMB'] > experiment_config['trial']['memoryMB']:
             print_error('shmMB should be no more than memoryMB!')
             exit(1)
+        #backward compatibility
+        warning_information = '{0} is not supported in NNI anymore, please remove the field in config file!\
+        please refer https://github.com/microsoft/nni/blob/master/docs/en_US/TrainingService/PaiMode.md#run-an-experiment\
+        for the practices of how to get data and output model in trial code'
+        if experiment_config.get('trial').get('dataDir'):
+            print_warning(warning_information.format('dataDir'))
+        if experiment_config.get('trial').get('outputDir'):
+            print_warning(warning_information.format('outputDir'))
 
 def validate_all_content(experiment_config, config_path):
     '''Validate whether experiment_config is valid'''

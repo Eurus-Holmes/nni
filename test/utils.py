@@ -1,33 +1,17 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import contextlib
 import collections
-import json
 import os
+import socket
 import sys
 import subprocess
 import requests
+import time
 import ruamel.yaml as yaml
 
-EXPERIMENT_DONE_SIGNAL = '"Experiment done"'
+EXPERIMENT_DONE_SIGNAL = 'Experiment done'
 
 GREEN = '\33[32m'
 RED = '\33[31m'
@@ -76,34 +60,38 @@ def setup_experiment(installed=True):
             pypath = ':'.join([sdk_path, cmd_path])
         os.environ['PYTHONPATH'] = pypath
 
-def fetch_nni_log_path(experiment_url):
-    '''get nni's log path from nni's experiment url'''
-    experiment_profile = requests.get(experiment_url)
-    experiment_id = json.loads(experiment_profile.text)['id']
-    experiment_path = os.path.join(os.path.expanduser('~'), 'nni', 'experiments', experiment_id)
-    nnimanager_log_path = os.path.join(experiment_path, 'log', 'nnimanager.log')
+def get_experiment_id(experiment_url):
+    experiment_id = requests.get(experiment_url).json()['id']
+    return experiment_id
 
-    return nnimanager_log_path
+def get_experiment_dir(experiment_url):
+    '''get experiment root directory'''
+    experiment_id = get_experiment_id(experiment_url)
+    return os.path.join(os.path.expanduser('~'), 'nni', 'experiments', experiment_id)
+
+def get_nni_log_dir(experiment_url):
+    '''get nni's log directory from nni's experiment url'''
+    return os.path.join(get_experiment_dir(experiment_url), 'log')
+
+def get_nni_log_path(experiment_url):
+    '''get nni's log path from nni's experiment url'''
+    return os.path.join(get_nni_log_dir(experiment_url), 'nnimanager.log')
 
 def is_experiment_done(nnimanager_log_path):
     '''check if the experiment is done successfully'''
     assert os.path.exists(nnimanager_log_path), 'Experiment starts failed'
-    if sys.platform == "win32":
-        cmds = ['type', nnimanager_log_path, '|', 'find', EXPERIMENT_DONE_SIGNAL]
-    else:
-        cmds = ['cat', nnimanager_log_path, '|', 'grep', EXPERIMENT_DONE_SIGNAL]
-    completed_process = subprocess.run(' '.join(cmds), shell=True)
+    
+    with open(nnimanager_log_path, 'r') as f:
+        log_content = f.read()
 
-    return completed_process.returncode == 0
+    return EXPERIMENT_DONE_SIGNAL in log_content
 
 def get_experiment_status(status_url):
     nni_status = requests.get(status_url).json()
-    #print(nni_status)
     return nni_status['status']
 
 def get_succeeded_trial_num(trial_jobs_url):
     trial_jobs = requests.get(trial_jobs_url).json()
-    print(trial_jobs)
     num_succeed = 0
     for trial_job in trial_jobs:
         if trial_job['status'] in ['SUCCEEDED', 'EARLY_STOPPED']:
@@ -111,15 +99,31 @@ def get_succeeded_trial_num(trial_jobs_url):
     print('num_succeed:', num_succeed)
     return num_succeed
 
-def print_stderr(trial_jobs_url):
+def get_failed_trial_jobs(trial_jobs_url):
+    '''Return failed trial jobs'''
     trial_jobs = requests.get(trial_jobs_url).json()
+    failed_jobs = []
     for trial_job in trial_jobs:
-        if trial_job['status'] == 'FAILED':
-            stderr_path = trial_job['stderrPath'].split(':')[-1]
+        if trial_job['status'] in ['FAILED']:
+            failed_jobs.append(trial_job)
+    return failed_jobs
+
+def print_failed_job_log(training_service, trial_jobs_url):
+    '''Print job log of FAILED trial jobs'''
+    trial_jobs = get_failed_trial_jobs(trial_jobs_url)
+    for trial_job in trial_jobs:
+        if training_service == 'local':
             if sys.platform == "win32":
-                subprocess.run(['type', stderr_path], shell=True)
+                p = trial_job['stderrPath'].split(':')
+                log_filename = ':'.join([p[-2], p[-1]])
             else:
-                subprocess.run(['cat', stderr_path])
+                log_filename = trial_job['stderrPath'].split(':')[-1]
+        else:
+            log_filename = os.path.join(get_experiment_dir(EXPERIMENT_URL), 'trials', trial_job['id'], 'stdout_log_collection.log')
+        with open(log_filename, 'r') as f:
+            log_content = f.read()
+            print(log_filename, flush=True)
+            print(log_content, flush=True)
 
 def parse_max_duration_time(max_exec_duration):
     unit = max_exec_duration[-1]
@@ -139,3 +143,17 @@ def deep_update(source, overrides):
         else:
             source[key] = overrides[key]
     return source
+
+def detect_port(port):
+    '''Detect if the port is used'''
+    socket_test = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    try:
+        socket_test.connect(('127.0.0.1', int(port)))
+        socket_test.close()
+        return True
+    except:
+        return False
+
+def snooze():
+    '''Sleep to make sure previous stopped exp has enough time to exit'''
+    time.sleep(6)

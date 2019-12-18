@@ -1,23 +1,5 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import json
 import os
@@ -25,7 +7,7 @@ from .rest_utils import rest_put, rest_post, rest_get, check_rest_server_quick, 
 from .url_utils import experiment_url, import_data_url
 from .config_utils import Config
 from .common_utils import get_json_content, print_normal, print_error, print_warning
-from .nnictl_utils import check_experiment_id, get_experiment_port, get_config_filename
+from .nnictl_utils import get_experiment_port, get_config_filename
 from .launcher_utils import parse_time
 from .constants import REST_TIME_OUT, TUNERS_SUPPORTING_IMPORT_DATA, TUNERS_NO_NEED_TO_IMPORT_DATA
 
@@ -112,7 +94,7 @@ def update_concurrency(args):
             print_error('Update %s failed!' % 'concurrency')
 
 def update_duration(args):
-    #parse time, change time unit to seconds 
+    #parse time, change time unit to seconds
     args.value = parse_time(args.value)
     args.port = get_experiment_port(args)
     if args.port is not None:

@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
-
- * MIT License
-
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -63,7 +47,7 @@ describe('Unit Test for LocalTrainingService', () => {
         //trial jobs should be empty, since there are no submitted jobs
         chai.expect(await localTrainingService.listTrialJobs()).to.be.empty;
     });
-    
+
     it('setClusterMetadata and getClusterMetadata', async () => {
         await localTrainingService.setClusterMetadata(TrialConfigMetadataKey.TRIAL_CONFIG, trialConfig);
         localTrainingService.getClusterMetadata(TrialConfigMetadataKey.TRIAL_CONFIG).then((data)=>{
@@ -76,7 +60,7 @@ describe('Unit Test for LocalTrainingService', () => {
 
         // submit job
         const form: TrialJobApplicationForm = {
-            jobType: 'TRIAL',
+            sequenceId: 0,
             hyperParameters: {
                 value: 'mock hyperparameters',
                 index: 0
@@ -87,7 +71,7 @@ describe('Unit Test for LocalTrainingService', () => {
         await localTrainingService.cancelTrialJob(jobDetail.id);
         chai.expect(jobDetail.status).to.be.equals('USER_CANCELED');
     }).timeout(20000);
-    
+
     it('Read metrics, Add listener, and remove listener', async () => {
         // set meta data
         const trialConfig: string = `{\"command\":\"python3 mockedTrial.py\", \"codeDir\":\"${localCodeDir}\",\"gpuNum\":0}`
@@ -95,7 +79,7 @@ describe('Unit Test for LocalTrainingService', () => {
 
         // submit job
         const form: TrialJobApplicationForm = {
-            jobType: 'TRIAL',
+            sequenceId: 0,
             hyperParameters: {
                 value: 'mock hyperparameters',
                 index: 0

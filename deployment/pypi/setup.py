@@ -1,22 +1,5 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-# associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# ==================================================================================================
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import setuptools
 import platform
@@ -40,7 +23,7 @@ for (dirpath, dirnames, filenames) in walk('./nni'):
     files = [path.normpath(path.join(dirpath, filename)) for filename in filenames]
     data_files.append((path.normpath(dirpath), files))
 
-with open('../../README.md', 'r') as fh:
+with open('../../README.md', 'r', encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -53,13 +36,16 @@ setuptools.setup(
     long_description_content_type = 'text/markdown',
     license = 'MIT',
     url = 'https://github.com/Microsoft/nni',
-    packages = setuptools.find_packages('../../tools') + setuptools.find_packages('../../src/sdk/pynni', exclude=['tests']),
+    packages = setuptools.find_packages('../../tools') \
+        + setuptools.find_packages('../../src/sdk/pynni', exclude=['tests']) \
+        + setuptools.find_packages('../../src/sdk/pycli'),
     package_dir = {
         'nni_annotation': '../../tools/nni_annotation',
         'nni_cmd': '../../tools/nni_cmd',
         'nni_trial_tool': '../../tools/nni_trial_tool',
         'nni_gpu_tool': '../../tools/nni_gpu_tool',
-        'nni': '../../src/sdk/pynni/nni'
+        'nni': '../../src/sdk/pynni/nni',
+        'nnicli': '../../src/sdk/pycli/nnicli'
     },
     package_data = {'nni': ['**/requirements.txt']},
     python_requires = '>=3.5',
@@ -70,13 +56,13 @@ setuptools.setup(
         'requests',
         'astor',
         'PythonWebHDFS',
-        'hyperopt',
+        'hyperopt==0.1.2',
         'json_tricks',
         'numpy',
         'scipy',
         'coverage',
         'colorama',
-        'sklearn'
+        'scikit-learn>=0.20,<0.22'
     ],
     classifiers = [
         'Programming Language :: Python :: 3',

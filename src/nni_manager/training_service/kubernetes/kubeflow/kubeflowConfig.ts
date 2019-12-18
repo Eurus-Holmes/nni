@@ -1,35 +1,23 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
 import * as assert from 'assert';
-import { KubernetesClusterConfigAzure, KubernetesClusterConfigNFS, KubernetesStorageKind, NFSConfig, AzureStorage, keyVaultConfig,
-        KubernetesTrialConfig, KubernetesTrialConfigTemplate, StorageConfig, KubernetesClusterConfig } from '../kubernetesConfig'
 import { MethodNotImplementedError } from '../../../common/errors';
+import { AzureStorage, KeyVaultConfig, KubernetesClusterConfig, KubernetesClusterConfigAzure, KubernetesClusterConfigNFS,
+    KubernetesStorageKind, KubernetesTrialConfig, KubernetesTrialConfigTemplate, NFSConfig, StorageConfig
+} from '../kubernetesConfig';
 
-/** operator types that kubeflow supported */
+// operator types that kubeflow supported
 export type KubeflowOperator = 'tf-operator' | 'pytorch-operator' ;
 export type DistTrainRole = 'worker' | 'ps' | 'master';
 export type KubeflowJobStatus = 'Created' | 'Running' | 'Failed' | 'Succeeded';
 export type OperatorApiVersion = 'v1alpha2' | 'v1beta1' | 'v1beta2';
 
+/**
+ * Kubeflow Cluster Configuration
+ */
 export class KubeflowClusterConfig extends KubernetesClusterConfig {
     public readonly operator: KubeflowOperator;
     constructor(apiVersion: string, operator: KubeflowOperator) {
@@ -41,8 +29,8 @@ export class KubeflowClusterConfig extends KubernetesClusterConfig {
 export class KubeflowClusterConfigNFS extends KubernetesClusterConfigNFS {
     public readonly operator: KubeflowOperator;
     constructor(
-            operator: KubeflowOperator, 
-            apiVersion: string, 
+            operator: KubeflowOperator,
+            apiVersion: string,
             nfs: NFSConfig,
             storage?: KubernetesStorageKind
         ) {
@@ -55,8 +43,9 @@ export class KubeflowClusterConfigNFS extends KubernetesClusterConfigNFS {
     }
 
     public static getInstance(jsonObject: object): KubeflowClusterConfigNFS {
-        let kubeflowClusterConfigObjectNFS = <KubeflowClusterConfigNFS>jsonObject;
-        assert (kubeflowClusterConfigObjectNFS !== undefined)
+        const kubeflowClusterConfigObjectNFS: KubeflowClusterConfigNFS = <KubeflowClusterConfigNFS>jsonObject;
+        assert (kubeflowClusterConfigObjectNFS !== undefined);
+
         return new KubeflowClusterConfigNFS(
             kubeflowClusterConfigObjectNFS.operator,
             kubeflowClusterConfigObjectNFS.apiVersion,
@@ -66,26 +55,27 @@ export class KubeflowClusterConfigNFS extends KubernetesClusterConfigNFS {
     }
 }
 
-export class KubeflowClusterConfigAzure extends KubernetesClusterConfigAzure{
+export class KubeflowClusterConfigAzure extends KubernetesClusterConfigAzure {
     public readonly operator: KubeflowOperator;
-    
+
     constructor(
-            operator: KubeflowOperator, 
-            apiVersion: string, 
-            keyVault: keyVaultConfig, 
-            azureStorage: AzureStorage, 
+            operator: KubeflowOperator,
+            apiVersion: string,
+            keyVault: KeyVaultConfig,
+            azureStorage: AzureStorage,
             storage?: KubernetesStorageKind
         ) {
-        super(apiVersion, keyVault, azureStorage,storage);
+        super(apiVersion, keyVault, azureStorage, storage);
         this.operator = operator;
     }
 
-    public get storageType(): KubernetesStorageKind{
+    public get storageType(): KubernetesStorageKind {
         return 'azureStorage';
     }
 
     public static getInstance(jsonObject: object): KubeflowClusterConfigAzure {
-        let kubeflowClusterConfigObjectAzure = <KubeflowClusterConfigAzure>jsonObject;
+        const kubeflowClusterConfigObjectAzure: KubeflowClusterConfigAzure = <KubeflowClusterConfigAzure>jsonObject;
+
         return new KubeflowClusterConfigAzure(
             kubeflowClusterConfigObjectAzure.operator,
             kubeflowClusterConfigObjectAzure.apiVersion,
@@ -99,11 +89,11 @@ export class KubeflowClusterConfigAzure extends KubernetesClusterConfigAzure{
 export class KubeflowClusterConfigFactory {
 
     public static generateKubeflowClusterConfig(jsonObject: object): KubeflowClusterConfig {
-         let storageConfig = <StorageConfig>jsonObject;
-         if(!storageConfig) {
-            throw new Error("Invalid json object as a StorageConfig instance");
+         const storageConfig: StorageConfig = <StorageConfig>jsonObject;
+         if (storageConfig === undefined) {
+            throw new Error('Invalid json object as a StorageConfig instance');
         }
-         if(storageConfig.storage && storageConfig.storage === 'azureStorage') {
+         if (storageConfig.storage !== undefined && storageConfig.storage === 'azureStorage') {
             return KubeflowClusterConfigAzure.getInstance(jsonObject);
          } else if (storageConfig.storage === undefined || storageConfig.storage === 'nfs') {
             return KubeflowClusterConfigNFS.getInstance(jsonObject);
@@ -122,11 +112,11 @@ export class KubeflowTrialConfig extends KubernetesTrialConfig {
     }
 }
 
-export class KubeflowTrialConfigTemplate extends KubernetesTrialConfigTemplate{
+export class KubeflowTrialConfigTemplate extends KubernetesTrialConfigTemplate {
     public readonly replicas: number;
-    constructor(replicas: number, command : string, gpuNum : number, 
-        cpuNum: number, memoryMB: number, image: string) {
-        super(command, gpuNum, cpuNum, memoryMB, image);
+    constructor(replicas: number, command: string, gpuNum: number,
+                cpuNum: number, memoryMB: number, image: string, privateRegistryAuthPath?: string) {
+        super(command, gpuNum, cpuNum, memoryMB, image, privateRegistryAuthPath);
         this.replicas = replicas;
     }
 }
@@ -162,23 +152,24 @@ export class KubeflowTrialConfigPytorch extends KubeflowTrialConfig {
 }
 
 export class KubeflowTrialConfigFactory {
-
     public static generateKubeflowTrialConfig(jsonObject: object, operator: KubeflowOperator): KubeflowTrialConfig {
-        if(operator === 'tf-operator'){
-            let kubeflowTrialConfigObject = <KubeflowTrialConfigTensorflow>jsonObject;
+        if (operator === 'tf-operator') {
+            const kubeflowTrialConfigObject: KubeflowTrialConfigTensorflow = <KubeflowTrialConfigTensorflow>jsonObject;
+
             return new KubeflowTrialConfigTensorflow(
                 kubeflowTrialConfigObject.codeDir,
                 kubeflowTrialConfigObject.worker,
                 kubeflowTrialConfigObject.ps
             );
-        }else if(operator === 'pytorch-operator'){
-            let kubeflowTrialConfigObject = <KubeflowTrialConfigPytorch>jsonObject;
+        } else if (operator === 'pytorch-operator') {
+            const kubeflowTrialConfigObject: KubeflowTrialConfigPytorch = <KubeflowTrialConfigPytorch>jsonObject;
+
             return new KubeflowTrialConfigPytorch(
                 kubeflowTrialConfigObject.codeDir,
                 kubeflowTrialConfigObject.master,
                 kubeflowTrialConfigObject.worker
             );
         }
-         throw new Error(`Invalid json object ${jsonObject}`);
+        throw new Error(`Invalid json object ${jsonObject}`);
     }
 }

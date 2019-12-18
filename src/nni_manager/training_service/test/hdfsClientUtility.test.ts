@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 import * as chai from 'chai';
@@ -37,7 +21,7 @@ describe('WebHDFS', function () {
     {
         "user": "user1",
         "port": 50070,
-        "host": "10.0.0.0"        
+        "host": "10.0.0.0"
     }
     */
     let skip: boolean = false;
@@ -45,7 +29,7 @@ describe('WebHDFS', function () {
     let hdfsClient: any;
     try {
         testHDFSInfo = JSON.parse(fs.readFileSync('../../.vscode/hdfsInfo.json', 'utf8'));
-        console.log(testHDFSInfo);        
+        console.log(testHDFSInfo);
         hdfsClient = WebHDFS.createClient({
             user: testHDFSInfo.user,
             port: testHDFSInfo.port,
@@ -120,7 +104,7 @@ describe('WebHDFS', function () {
         chai.expect(actualFileData).to.be.equals(testFileData);
 
         const testHDFSDirPath : string = path.join('/nni_unittest_' + uniqueString(6) +  '_dir');
-        
+
         await HDFSClientUtility.copyDirectoryToHdfs(tmpLocalDirectoryPath, testHDFSDirPath, hdfsClient);
 
         const files : any[] = await HDFSClientUtility.readdir(testHDFSDirPath, hdfsClient);
@@ -133,7 +117,7 @@ describe('WebHDFS', function () {
 
         // Cleanup
         rmdir(tmpLocalDirectoryPath);
-        
+
         let deleteRestult : boolean = await HDFSClientUtility.deletePath(testHDFSFilePath, hdfsClient);
         chai.expect(deleteRestult).to.be.equals(true);
 

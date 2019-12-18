@@ -1,22 +1,6 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 '''
 __main__.py
 '''
@@ -27,10 +11,10 @@ import logging
 import json
 import importlib
 
+from .common import enable_multi_thread, enable_multi_phase
 from .constants import ModuleName, ClassName, ClassArgs, AdvisorModuleName, AdvisorClassName
-from nni.common import enable_multi_thread
-from nni.msg_dispatcher import MsgDispatcher
-from nni.multi_phase.multi_phase_dispatcher import MultiPhaseMsgDispatcher
+from .msg_dispatcher import MsgDispatcher
+
 logger = logging.getLogger('nni.main')
 logger.debug('START')
 
@@ -45,7 +29,7 @@ def augment_classargs(input_class_args, classname):
                 input_class_args[key] = value
     return input_class_args
 
-def create_builtin_class_instance(classname, jsonstr_args, is_advisor = False):
+def create_builtin_class_instance(classname, jsonstr_args, is_advisor=False):
     if is_advisor:
         if classname not in AdvisorModuleName or \
             importlib.util.find_spec(AdvisorModuleName[classname]) is None:
@@ -126,64 +110,21 @@ def main():
     args = parse_args()
     if args.multi_thread:
         enable_multi_thread()
+    if args.multi_phase:
+        enable_multi_phase()
 
     if args.advisor_class_name:
         # advisor is enabled and starts to run
-        if args.multi_phase:
-            raise AssertionError('multi_phase has not been supported in advisor')
-        if args.advisor_class_name in AdvisorModuleName:
-            dispatcher = create_builtin_class_instance(
-                args.advisor_class_name,
-                args.advisor_args, True)
-        else:
-            dispatcher = create_customized_class_instance(
-                args.advisor_directory,
-                args.advisor_class_filename,
-                args.advisor_class_name,
-                args.advisor_args)
-        if dispatcher is None:
-            raise AssertionError('Failed to create Advisor instance')
-        try:
-            dispatcher.run()
-        except Exception as exception:
-            logger.exception(exception)
-            raise
+        _run_advisor(args)
+
     else:
         # tuner (and assessor) is enabled and starts to run
-        tuner = None
-        assessor = None
-        if args.tuner_class_name in ModuleName:
-            tuner = create_builtin_class_instance(
-                args.tuner_class_name, 
-                args.tuner_args)
-        else:
-            tuner = create_customized_class_instance(
-                args.tuner_directory,
-                args.tuner_class_filename,
-                args.tuner_class_name,
-                args.tuner_args)
-
-        if tuner is None:
-            raise AssertionError('Failed to create Tuner instance')
-
+        tuner = _create_tuner(args)
         if args.assessor_class_name:
-            if args.assessor_class_name in ModuleName:
-                assessor = create_builtin_class_instance(
-                    args.assessor_class_name,
-                    args.assessor_args)
-            else:
-                assessor = create_customized_class_instance(
-                    args.assessor_directory,
-                    args.assessor_class_filename,
-                    args.assessor_class_name,
-                    args.assessor_args)
-            if assessor is None:
-                raise AssertionError('Failed to create Assessor instance')
-
-        if args.multi_phase:
-            dispatcher = MultiPhaseMsgDispatcher(tuner, assessor)
+            assessor = _create_assessor(args)
         else:
-            dispatcher = MsgDispatcher(tuner, assessor)
+            assessor = None
+        dispatcher = MsgDispatcher(tuner, assessor)
 
         try:
             dispatcher.run()
@@ -196,6 +137,59 @@ def main():
             if assessor is not None:
                 assessor._on_error()
             raise
+
+
+def _run_advisor(args):
+    if args.advisor_class_name in AdvisorModuleName:
+        dispatcher = create_builtin_class_instance(
+            args.advisor_class_name,
+            args.advisor_args, True)
+    else:
+        dispatcher = create_customized_class_instance(
+            args.advisor_directory,
+            args.advisor_class_filename,
+            args.advisor_class_name,
+            args.advisor_args)
+    if dispatcher is None:
+        raise AssertionError('Failed to create Advisor instance')
+    try:
+        dispatcher.run()
+    except Exception as exception:
+        logger.exception(exception)
+        raise
+
+
+def _create_tuner(args):
+    if args.tuner_class_name in ModuleName:
+        tuner = create_builtin_class_instance(
+            args.tuner_class_name,
+            args.tuner_args)
+    else:
+        tuner = create_customized_class_instance(
+            args.tuner_directory,
+            args.tuner_class_filename,
+            args.tuner_class_name,
+            args.tuner_args)
+    if tuner is None:
+        raise AssertionError('Failed to create Tuner instance')
+    return tuner
+
+
+def _create_assessor(args):
+    if args.assessor_class_name in ModuleName:
+        assessor = create_builtin_class_instance(
+            args.assessor_class_name,
+            args.assessor_args)
+    else:
+        assessor = create_customized_class_instance(
+            args.assessor_directory,
+            args.assessor_class_filename,
+            args.assessor_class_name,
+            args.assessor_args)
+    if assessor is None:
+        raise AssertionError('Failed to create Assessor instance')
+    return assessor
+
 
 if __name__ == '__main__':
     try:

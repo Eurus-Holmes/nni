@@ -1,24 +1,10 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import logging
 import numpy as np
 from scipy import optimize
-from .curvefunctions import *
+from .curvefunctions import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 # Number of curve functions we prepared, more details can be found in "curvefunctions.py"
 NUM_OF_FUNCTIONS = 12
@@ -33,14 +19,14 @@ LEAST_FITTED_FUNCTION = 4
 
 logger = logging.getLogger('curvefitting_Assessor')
 
-class CurveModel(object):
+class CurveModel:
     """Build a Curve Model to predict the performance
-    
+
     Algorithm: https://github.com/Microsoft/nni/blob/master/src/sdk/pynni/nni/curvefitting_assessor/README.md
 
     Parameters
     ----------
-    target_pos: int
+    target_pos : int
         The point we need to predict
     """
     def __init__(self, target_pos):
@@ -53,7 +39,7 @@ class CurveModel(object):
 
     def fit_theta(self):
         """use least squares to fit all default curves parameter seperately
-        
+
         Returns
         -------
         None
@@ -83,11 +69,11 @@ class CurveModel(object):
                 # Ignore exceptions caused by numerical calculations
                 pass
             except Exception as exception:
-                logger.critical("Exceptions in fit_theta:", exception)
+                logger.critical("Exceptions in fit_theta: %s", exception)
 
     def filter_curve(self):
         """filter the poor performing curve
-        
+
         Returns
         -------
         None
@@ -113,21 +99,21 @@ class CurveModel(object):
             if y < median + epsilon and y > median - epsilon:
                 self.effective_model.append(model)
         self.effective_model_num = len(self.effective_model)
-        logger.info('List of effective model: ', self.effective_model)
+        logger.info('List of effective model: %s', self.effective_model)
 
     def predict_y(self, model, pos):
         """return the predict y of 'model' when epoch = pos
-        
+
         Parameters
         ----------
-        model: string
+        model : string
             name of the curve function model
-        pos: int
+        pos : int
             the epoch number of the position you want to predict
 
         Returns
         -------
-        int:
+        int
             The expected matrix at pos
         """
         if model_para_num[model] == 2:
@@ -143,9 +129,9 @@ class CurveModel(object):
 
         Parameters
         ----------
-        pos: int
+        pos : int
             the epoch number of the position you want to predict
-        sample: list
+        sample : list
             sample is a (1 * NUM_OF_FUNCTIONS) matrix, representing{w1, w2, ... wk}
 
         Returns
@@ -162,10 +148,10 @@ class CurveModel(object):
 
     def normalize_weight(self, samples):
         """normalize weight
-        
+
         Parameters
         ----------
-        samples: list
+        samples : list
             a collection of sample, it's a (NUM_OF_INSTANCE * NUM_OF_FUNCTIONS) matrix,
             representing{{w11, w12, ..., w1k}, {w21, w22, ... w2k}, ...{wk1, wk2,..., wkk}}
 
@@ -184,10 +170,10 @@ class CurveModel(object):
 
     def sigma_sq(self, sample):
         """returns the value of sigma square, given the weight's sample
-        
+
         Parameters
         ----------
-        sample: list
+        sample : list
             sample is a (1 * NUM_OF_FUNCTIONS) matrix, representing{w1, w2, ... wk}
 
         Returns
@@ -203,12 +189,12 @@ class CurveModel(object):
 
     def normal_distribution(self, pos, sample):
         """returns the value of normal distribution, given the weight's sample and target position
-        
+
         Parameters
         ----------
-        pos: int
+        pos : int
             the epoch number of the position you want to predict
-        sample: list
+        sample : list
             sample is a (1 * NUM_OF_FUNCTIONS) matrix, representing{w1, w2, ... wk}
 
         Returns
@@ -225,9 +211,9 @@ class CurveModel(object):
 
         Parameters
         ----------
-        sample: list
+        sample : list
             sample is a (1 * NUM_OF_FUNCTIONS) matrix, representing{w1, w2, ... wk}
-        
+
         Returns
         -------
         float
@@ -241,13 +227,13 @@ class CurveModel(object):
 
     def prior(self, samples):
         """priori distribution
- 
+
         Parameters
         ----------
-        samples: list
+        samples : list
             a collection of sample, it's a (NUM_OF_INSTANCE * NUM_OF_FUNCTIONS) matrix,
             representing{{w11, w12, ..., w1k}, {w21, w22, ... w2k}, ...{wk1, wk2,..., wkk}}
-        
+
         Returns
         -------
         float
@@ -264,13 +250,13 @@ class CurveModel(object):
 
     def target_distribution(self, samples):
         """posterior probability
-        
+
         Parameters
         ----------
-        samples: list
+        samples : list
             a collection of sample, it's a (NUM_OF_INSTANCE * NUM_OF_FUNCTIONS) matrix,
             representing{{w11, w12, ..., w1k}, {w21, w22, ... w2k}, ...{wk1, wk2,..., wkk}}
-        
+
         Returns
         -------
         float
@@ -303,7 +289,7 @@ class CurveModel(object):
         """
         init_weight = np.ones((self.effective_model_num), dtype=np.float) / self.effective_model_num
         self.weight_samples = np.broadcast_to(init_weight, (NUM_OF_INSTANCE, self.effective_model_num))
-        for i in range(NUM_OF_SIMULATION_TIME):
+        for _ in range(NUM_OF_SIMULATION_TIME):
             # sample new value from Q(i, j)
             new_values = np.random.randn(NUM_OF_INSTANCE, self.effective_model_num) * STEP_SIZE + self.weight_samples
             new_values = self.normalize_weight(new_values)
@@ -319,10 +305,10 @@ class CurveModel(object):
 
     def predict(self, trial_history):
         """predict the value of target position
-        
+
         Parameters
         ----------
-        trial_history: list
+        trial_history : list
             The history performance matrix of each trial.
 
         Returns

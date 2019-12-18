@@ -1,22 +1,5 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import os
 import sys
@@ -33,8 +16,7 @@ from logging import StreamHandler
 
 from queue import Queue
 
-from .rest_utils import rest_get, rest_post, rest_put, rest_delete
-from .constants import NNI_EXP_ID, NNI_TRIAL_JOB_ID, STDOUT_API
+from .rest_utils import rest_post
 from .url_utils import gen_send_stdout_url
 
 @unique
@@ -73,7 +55,7 @@ class NNIRestLogHanlder(StreamHandler):
         log_entry['msg'] = self.format(record)
 
         try:
-            response = rest_post(gen_send_stdout_url(self.host, self.port), json.dumps(log_entry), 10, True)
+            rest_post(gen_send_stdout_url(self.host, self.port), json.dumps(log_entry), 10, True)
         except Exception as e:
             self.orig_stderr.write(str(e) + '\n')
             self.orig_stderr.flush()
@@ -112,7 +94,7 @@ class RemoteLogger(object):
             self.orig_stdout.flush()
             try:
                 self.logger.log(self.log_level, line.rstrip())
-            except Exception as e:
+            except Exception:
                 pass
 
 class PipeLogReader(threading.Thread):
@@ -134,7 +116,7 @@ class PipeLogReader(threading.Thread):
         self._is_read_completed = False
         self.process_exit = False
         self.log_collection = log_collection
-        self.log_pattern = re.compile(r'^NNISDK_MEb\'.*\'$')
+        self.log_pattern = re.compile(r'NNISDK_MEb\'.*\'$')
 
         def _populateQueue(stream, queue):
             '''
@@ -142,20 +124,19 @@ class PipeLogReader(threading.Thread):
             '''
             time.sleep(5)
             while True:
-                cur_process_exit = self.process_exit       
+                cur_process_exit = self.process_exit
                 try:
                     line = self.queue.get(True, 5)
                     try:
                         self.logger.log(self.log_level, line.rstrip())
-                    except Exception as e:
+                    except Exception:
                         pass
-                except Exception as e:
-                    if cur_process_exit == True:     
+                except Exception:
+                    if cur_process_exit == True:
                         self._is_read_completed = True
                         break
 
-        self.pip_log_reader_thread = threading.Thread(target = _populateQueue,
-                args = (self.pipeReader, self.queue))
+        self.pip_log_reader_thread = threading.Thread(target=_populateQueue, args=(self.pipeReader, self.queue))
         self.pip_log_reader_thread.daemon = True
         self.start()
         self.pip_log_reader_thread.start()
@@ -172,12 +153,15 @@ class PipeLogReader(threading.Thread):
         for line in iter(self.pipeReader.readline, ''):
             self.orig_stdout.write(line.rstrip() + '\n')
             self.orig_stdout.flush()
+
             if self.log_collection == 'none':
-                # If not match metrics, do not put the line into queue
-                if not self.log_pattern.match(line):
-                    continue
-            self.queue.put(line)
-            
+                search_result = self.log_pattern.search(line)
+                if search_result:
+                    metrics = search_result.group(0)
+                    self.queue.put(metrics+'\n')
+            else:
+                self.queue.put(line)
+
         self.pipeReader.close()
 
     def close(self):
@@ -190,7 +174,7 @@ class PipeLogReader(threading.Thread):
         """Return if read is completed
         """
         return self._is_read_completed
-    
+
     def set_process_exit(self):
         self.process_exit = True
         return self.process_exit

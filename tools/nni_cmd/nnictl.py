@@ -1,33 +1,20 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import argparse
+import os
 import pkg_resources
-from .launcher import create_experiment, resume_experiment
-from .updater import update_searchspace, update_concurrency, update_duration, update_trialnum, import_data
-from .nnictl_utils import *
-from .package_management import *
-from .constants import *
-from .tensorboard_utils import *
 from colorama import init
+from .common_utils import print_error
+from .launcher import create_experiment, resume_experiment, view_experiment
+from .updater import update_searchspace, update_concurrency, update_duration, update_trialnum, import_data
+from .nnictl_utils import stop_experiment, trial_ls, trial_kill, list_experiment, experiment_status,\
+                          log_trial, experiment_clean, platform_clean, experiment_list, \
+                          monitor_experiment, export_trials_data, trial_codegen, webui_url, \
+                          get_config, log_stdout, log_stderr, search_space_auto_gen
+from .package_management import package_install, package_show
+from .constants import DEFAULT_REST_PORT
+from .tensorboard_utils import start_tensorboard, stop_tensorboard
 init(autoreset=True)
 
 if os.environ.get('COVERAGE_PROCESS_START'):
@@ -38,7 +25,7 @@ def nni_info(*args):
     if args[0].version:
         try:
             print(pkg_resources.get_distribution('nni').version)
-        except pkg_resources.ResolutionError as err:
+        except pkg_resources.ResolutionError:
             print_error('Get version failed, please use `pip3 list | grep nni` to check nni version!')
     else:
         print('please run "nnictl {positional argument} --help" to see nnictl guidance')
@@ -51,6 +38,13 @@ def parse_args():
 
     # create subparsers for args with sub values
     subparsers = parser.add_subparsers()
+
+    # parse the command of auto generating search space
+    parser_start = subparsers.add_parser('ss_gen', help='automatically generate search space file from trial code')
+    parser_start.add_argument('--trial_command', '-t', required=True, dest='trial_command', help='the command for running trial code')
+    parser_start.add_argument('--trial_dir', '-d', default='./', dest='trial_dir', help='the directory for running the command')
+    parser_start.add_argument('--file', '-f', default='nni_auto_gen_search_space.json', dest='file', help='the path of search space file')
+    parser_start.set_defaults(func=search_space_auto_gen)
 
     # parse start command
     parser_start = subparsers.add_parser('create', help='create a new experiment')
@@ -65,6 +59,12 @@ def parse_args():
     parser_resume.add_argument('--port', '-p', default=DEFAULT_REST_PORT, dest='port', help='the port of restful server')
     parser_resume.add_argument('--debug', '-d', action='store_true', help=' set debug mode')
     parser_resume.set_defaults(func=resume_experiment)
+
+    # parse view command
+    parser_resume = subparsers.add_parser('view', help='view a stopped experiment')
+    parser_resume.add_argument('id', nargs='?', help='The id of the experiment you want to view')
+    parser_resume.add_argument('--port', '-p', default=DEFAULT_REST_PORT, dest='port', help='the port of restful server')
+    parser_resume.set_defaults(func=view_experiment)
 
     # parse update command
     parser_updater = subparsers.add_parser('update', help='update the experiment')
@@ -90,6 +90,8 @@ def parse_args():
     #parse stop command
     parser_stop = subparsers.add_parser('stop', help='stop the experiment')
     parser_stop.add_argument('id', nargs='?', help='the id of experiment, use \'all\' to stop all running experiments')
+    parser_stop.add_argument('--port', '-p', dest='port', help='the port of restful server')
+    parser_stop.add_argument('--all', '-a', action='store_true', help='stop all of experiments')
     parser_stop.set_defaults(func=stop_experiment)
 
     #parse trial command
@@ -119,8 +121,21 @@ def parse_args():
     parser_experiment_status.add_argument('id', nargs='?', help='the id of experiment')
     parser_experiment_status.set_defaults(func=experiment_status)
     parser_experiment_list = parser_experiment_subparsers.add_parser('list', help='list all of running experiment ids')
-    parser_experiment_list.add_argument('all', nargs='?', help='list all of experiments')
+    parser_experiment_list.add_argument('--all', action='store_true', default=False, help='list all of experiments')
     parser_experiment_list.set_defaults(func=experiment_list)
+    parser_experiment_clean = parser_experiment_subparsers.add_parser('delete', help='clean up the experiment data')
+    parser_experiment_clean.add_argument('id', nargs='?', help='the id of experiment')
+    parser_experiment_clean.add_argument('--all', action='store_true', default=False, help='delete all of experiments')
+    parser_experiment_clean.set_defaults(func=experiment_clean)
+
+    #parse experiment command
+    parser_platform = subparsers.add_parser('platform', help='get platform information')
+    #add subparsers for parser_experiment
+    parser_platform_subparsers = parser_platform.add_subparsers()
+    parser_platform_clean = parser_platform_subparsers.add_parser('clean', help='clean up the platform data')
+    parser_platform_clean.add_argument('--config', '-c', required=True, dest='config', help='the path of yaml config file')
+    parser_platform_clean.set_defaults(func=platform_clean)
+
     #import tuning data
     parser_import_data = parser_experiment_subparsers.add_parser('import', help='import additional data')
     parser_import_data.add_argument('id', nargs='?', help='the id of experiment')
@@ -176,7 +191,7 @@ def parse_args():
     parser_package_subparsers = parser_package.add_subparsers()
     parser_package_install = parser_package_subparsers.add_parser('install', help='install packages')
     parser_package_install.add_argument('--name', '-n', dest='name', help='package name to be installed')
-    parser_package_install.set_defaults(func=package_install) 
+    parser_package_install.set_defaults(func=package_install)
     parser_package_show = parser_package_subparsers.add_parser('show', help='show the information of packages')
     parser_package_show.set_defaults(func=package_show)
 
@@ -188,9 +203,9 @@ def parse_args():
     parser_tensorboard_start.add_argument('--trial_id', '-T', dest='trial_id', help='the id of trial')
     parser_tensorboard_start.add_argument('--port', dest='port', default=6006, help='the port to start tensorboard')
     parser_tensorboard_start.set_defaults(func=start_tensorboard)
-    parser_tensorboard_start = parser_tensorboard_subparsers.add_parser('stop', help='stop tensorboard')
-    parser_tensorboard_start.add_argument('id', nargs='?', help='the id of experiment')
-    parser_tensorboard_start.set_defaults(func=stop_tensorboard)
+    parser_tensorboard_stop = parser_tensorboard_subparsers.add_parser('stop', help='stop tensorboard')
+    parser_tensorboard_stop.add_argument('id', nargs='?', help='the id of experiment')
+    parser_tensorboard_stop.set_defaults(func=stop_tensorboard)
 
     #parse top command
     parser_top = subparsers.add_parser('top', help='monitor the experiment')

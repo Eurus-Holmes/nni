@@ -1,25 +1,8 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-# associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# ==================================================================================================
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 from abc import abstractmethod
-from collections import Iterable
+from collections.abc import Iterable
 
 import torch
 from torch import nn
@@ -28,8 +11,10 @@ from nni.networkmorphism_tuner.utils import Constant
 
 
 class AvgPool(nn.Module):
-    '''AvgPool Module.
-    '''
+    """
+    AvgPool Module.
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -39,8 +24,10 @@ class AvgPool(nn.Module):
 
 
 class GlobalAvgPool1d(AvgPool):
-    '''GlobalAvgPool1d Module.
-    '''
+    """
+    GlobalAvgPool1d Module.
+    """
+
     def forward(self, input_tensor):
         return functional.avg_pool1d(input_tensor, input_tensor.size()[2:]).view(
             input_tensor.size()[:2]
@@ -48,8 +35,10 @@ class GlobalAvgPool1d(AvgPool):
 
 
 class GlobalAvgPool2d(AvgPool):
-    '''GlobalAvgPool2d Module.
-    '''
+    """
+    GlobalAvgPool2d Module.
+    """
+
     def forward(self, input_tensor):
         return functional.avg_pool2d(input_tensor, input_tensor.size()[2:]).view(
             input_tensor.size()[:2]
@@ -57,8 +46,10 @@ class GlobalAvgPool2d(AvgPool):
 
 
 class GlobalAvgPool3d(AvgPool):
-    '''GlobalAvgPool3d Module.
-    '''
+    """
+    GlobalAvgPool3d Module.
+    """
+
     def forward(self, input_tensor):
         return functional.avg_pool3d(input_tensor, input_tensor.size()[2:]).view(
             input_tensor.size()[:2]
@@ -66,76 +57,86 @@ class GlobalAvgPool3d(AvgPool):
 
 
 class StubLayer:
-    '''StubLayer Module. Base Module.
-    '''
+    """
+    StubLayer Module. Base Module.
+    """
+
     def __init__(self, input_node=None, output_node=None):
         self.input = input_node
         self.output = output_node
         self.weights = None
 
     def build(self, shape):
-        '''build shape.
-        '''
-        pass
+        """
+        build shape.
+        """
 
     def set_weights(self, weights):
-        '''set weights.
-        '''
+        """
+        set weights.
+        """
         self.weights = weights
 
     def import_weights(self, torch_layer):
-        '''import weights.
-        '''
-        pass
+        """
+        import weights.
+        """
 
     def import_weights_keras(self, keras_layer):
-        '''import weights from keras layer.
-        '''
-        pass
+        """
+        import weights from keras layer.
+        """
 
     def export_weights(self, torch_layer):
-        '''export weights.
-        '''
-        pass
+        """
+        export weights.
+        """
 
     def export_weights_keras(self, keras_layer):
-        '''export weights to keras layer.
-        '''
-        pass
+        """
+        export weights to keras layer.
+        """
 
     def get_weights(self):
-        '''get weights.
-        '''
+        """
+        get weights.
+        """
         return self.weights
 
     def size(self):
-        '''size().
-        '''
+        """
+        size().
+        """
         return 0
 
     @property
     def output_shape(self):
-        '''output shape.
-        '''
+        """
+        output shape.
+        """
         return self.input.shape
 
     def to_real_layer(self):
-        '''to real layer.
-        '''
-        pass
+        """
+        to real layer.
+        """
 
     def __str__(self):
-        '''str() function to print.
-        '''
+        """
+        str() function to print.
+        """
         return type(self).__name__[4:]
 
 
 class StubWeightBiasLayer(StubLayer):
-    '''StubWeightBiasLayer Module to set the bias.
-    '''
+    """
+    StubWeightBiasLayer Module to set the bias.
+    """
+
     def import_weights(self, torch_layer):
         self.set_weights(
-            (torch_layer.weight.data.cpu().numpy(), torch_layer.bias.data.cpu().numpy())
+            (torch_layer.weight.data.cpu().numpy(),
+             torch_layer.bias.data.cpu().numpy())
         )
 
     def import_weights_keras(self, keras_layer):
@@ -150,8 +151,10 @@ class StubWeightBiasLayer(StubLayer):
 
 
 class StubBatchNormalization(StubWeightBiasLayer):
-    '''StubBatchNormalization Module. Batch Norm.
-    '''
+    """
+    StubBatchNormalization Module. Batch Norm.
+    """
+
     def __init__(self, num_features, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
         self.num_features = num_features
@@ -181,29 +184,37 @@ class StubBatchNormalization(StubWeightBiasLayer):
 
 
 class StubBatchNormalization1d(StubBatchNormalization):
-    '''StubBatchNormalization1d Module.
-    '''
+    """
+    StubBatchNormalization1d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.BatchNorm1d(self.num_features)
 
 
 class StubBatchNormalization2d(StubBatchNormalization):
-    '''StubBatchNormalization2d Module.
-    '''
+    """
+    StubBatchNormalization2d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.BatchNorm2d(self.num_features)
 
 
 class StubBatchNormalization3d(StubBatchNormalization):
-    '''StubBatchNormalization3d Module.
-    '''
+    """
+    StubBatchNormalization3d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.BatchNorm3d(self.num_features)
 
 
 class StubDense(StubWeightBiasLayer):
-    '''StubDense Module. Linear.
-    '''
+    """
+    StubDense Module. Linear.
+    """
+
     def __init__(self, input_units, units, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
         self.input_units = input_units
@@ -214,7 +225,9 @@ class StubDense(StubWeightBiasLayer):
         return (self.units,)
 
     def import_weights_keras(self, keras_layer):
-        self.set_weights((keras_layer.get_weights()[0].T, keras_layer.get_weights()[1]))
+        self.set_weights(
+            (keras_layer.get_weights()[0].T,
+             keras_layer.get_weights()[1]))
 
     def export_weights_keras(self, keras_layer):
         keras_layer.set_weights((self.weights[0].T, self.weights[1]))
@@ -227,9 +240,12 @@ class StubDense(StubWeightBiasLayer):
 
 
 class StubConv(StubWeightBiasLayer):
-    '''StubConv Module. Conv.
-    '''
-    def __init__(self, input_channel, filters, kernel_size, stride=1, input_node=None, output_node=None):
+    """
+    StubConv Module. Conv.
+    """
+
+    def __init__(self, input_channel, filters, kernel_size,
+                 stride=1, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
         self.input_channel = input_channel
         self.filters = filters
@@ -248,13 +264,16 @@ class StubConv(StubWeightBiasLayer):
         return tuple(ret)
 
     def import_weights_keras(self, keras_layer):
-        self.set_weights((keras_layer.get_weights()[0].T, keras_layer.get_weights()[1]))
+        self.set_weights(
+            (keras_layer.get_weights()[0].T,
+             keras_layer.get_weights()[1]))
 
     def export_weights_keras(self, keras_layer):
         keras_layer.set_weights((self.weights[0].T, self.weights[1]))
 
     def size(self):
-        return (self.input_channel * self.kernel_size * self.kernel_size + 1) * self.filters
+        return (self.input_channel * self.kernel_size *
+                self.kernel_size + 1) * self.filters
 
     @abstractmethod
     def to_real_layer(self):
@@ -278,8 +297,10 @@ class StubConv(StubWeightBiasLayer):
 
 
 class StubConv1d(StubConv):
-    '''StubConv1d Module.
-    '''
+    """
+    StubConv1d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Conv1d(
             self.input_channel,
@@ -291,8 +312,10 @@ class StubConv1d(StubConv):
 
 
 class StubConv2d(StubConv):
-    '''StubConv2d Module.
-    '''
+    """
+    StubConv2d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Conv2d(
             self.input_channel,
@@ -304,8 +327,10 @@ class StubConv2d(StubConv):
 
 
 class StubConv3d(StubConv):
-    '''StubConv3d Module.
-    '''
+    """
+    StubConv3d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Conv3d(
             self.input_channel,
@@ -317,8 +342,10 @@ class StubConv3d(StubConv):
 
 
 class StubAggregateLayer(StubLayer):
-    '''StubAggregateLayer Module.
-    '''
+    """
+    StubAggregateLayer Module.
+    """
+
     def __init__(self, input_nodes=None, output_node=None):
         if input_nodes is None:
             input_nodes = []
@@ -326,8 +353,8 @@ class StubAggregateLayer(StubLayer):
 
 
 class StubConcatenate(StubAggregateLayer):
-    '''StubConcatenate Module.
-    '''
+    """StubConcatenate Module.
+    """
     @property
     def output_shape(self):
         ret = 0
@@ -341,8 +368,9 @@ class StubConcatenate(StubAggregateLayer):
 
 
 class StubAdd(StubAggregateLayer):
-    '''StubAdd Module.
-    '''
+    """
+    StubAdd Module.
+    """
     @property
     def output_shape(self):
         return self.input[0].shape
@@ -352,8 +380,9 @@ class StubAdd(StubAggregateLayer):
 
 
 class StubFlatten(StubLayer):
-    '''StubFlatten Module.
-    '''
+    """
+    StubFlatten Module.
+    """
     @property
     def output_shape(self):
         ret = 1
@@ -366,22 +395,28 @@ class StubFlatten(StubLayer):
 
 
 class StubReLU(StubLayer):
-    '''StubReLU Module.
-    '''
+    """
+    StubReLU Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.ReLU()
 
 
 class StubSoftmax(StubLayer):
-    '''StubSoftmax Module.
-    '''
+    """
+    StubSoftmax Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.LogSoftmax(dim=1)
 
 
 class StubDropout(StubLayer):
-    '''StubDropout Module.
-    '''
+    """
+    StubDropout Module.
+    """
+
     def __init__(self, rate, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
         self.rate = rate
@@ -392,36 +427,45 @@ class StubDropout(StubLayer):
 
 
 class StubDropout1d(StubDropout):
-    '''StubDropout1d Module.
-    '''
+    """
+    StubDropout1d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Dropout(self.rate)
 
 
 class StubDropout2d(StubDropout):
-    '''StubDropout2d Module.
-    '''
+    """
+    StubDropout2d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Dropout2d(self.rate)
 
 
 class StubDropout3d(StubDropout):
-    '''StubDropout3d Module.
-    '''
+    """
+    StubDropout3d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.Dropout3d(self.rate)
 
 
 class StubInput(StubLayer):
-    '''StubInput Module.
-    '''
+    """
+    StubInput Module.
+    """
+
     def __init__(self, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
 
 
 class StubPooling(StubLayer):
-    '''StubPooling Module.
-    '''
+    """
+    StubPooling Module.
+    """
 
     def __init__(self,
                  kernel_size=None,
@@ -450,30 +494,37 @@ class StubPooling(StubLayer):
 
 
 class StubPooling1d(StubPooling):
-    '''StubPooling1d Module.
-    '''
+    """
+    StubPooling1d Module.
+    """
 
     def to_real_layer(self):
         return torch.nn.MaxPool1d(self.kernel_size, stride=self.stride)
 
 
 class StubPooling2d(StubPooling):
-    '''StubPooling2d Module.
-    '''
+    """
+    StubPooling2d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.MaxPool2d(self.kernel_size, stride=self.stride)
 
 
 class StubPooling3d(StubPooling):
-    '''StubPooling3d Module.
-    '''
+    """
+    StubPooling3d Module.
+    """
+
     def to_real_layer(self):
         return torch.nn.MaxPool3d(self.kernel_size, stride=self.stride)
 
 
 class StubGlobalPooling(StubLayer):
-    '''StubGlobalPooling Module.
-    '''
+    """
+    StubGlobalPooling Module.
+    """
+
     def __init__(self, input_node=None, output_node=None):
         super().__init__(input_node, output_node)
 
@@ -487,49 +538,63 @@ class StubGlobalPooling(StubLayer):
 
 
 class StubGlobalPooling1d(StubGlobalPooling):
-    '''StubGlobalPooling1d Module.
-    '''
+    """
+    StubGlobalPooling1d Module.
+    """
+
     def to_real_layer(self):
         return GlobalAvgPool1d()
 
 
 class StubGlobalPooling2d(StubGlobalPooling):
-    '''StubGlobalPooling2d Module.
-    '''
+    """
+    StubGlobalPooling2d Module.
+    """
+
     def to_real_layer(self):
         return GlobalAvgPool2d()
 
 
 class StubGlobalPooling3d(StubGlobalPooling):
-    '''StubGlobalPooling3d Module.
-    '''
+    """
+    StubGlobalPooling3d Module.
+    """
+
     def to_real_layer(self):
         return GlobalAvgPool3d()
 
 
 class TorchConcatenate(nn.Module):
-    '''TorchConcatenate Module.
-    '''
+    """
+    TorchConcatenate Module.
+    """
+
     def forward(self, input_list):
         return torch.cat(input_list, dim=1)
 
 
 class TorchAdd(nn.Module):
-    '''TorchAdd Module.
-    '''
+    """
+    TorchAdd Module.
+    """
+
     def forward(self, input_list):
         return input_list[0] + input_list[1]
 
 
 class TorchFlatten(nn.Module):
-    '''TorchFlatten Module.
-    '''
+    """
+    TorchFlatten Module.
+    """
+
     def forward(self, input_tensor):
         return input_tensor.view(input_tensor.size(0), -1)
 
+
 def keras_dropout(layer, rate):
-    '''keras dropout layer.
-    '''
+    """
+    Keras dropout layer.
+    """
 
     from keras import layers
 
@@ -545,8 +610,9 @@ def keras_dropout(layer, rate):
 
 
 def to_real_keras_layer(layer):
-    ''' real keras layer.
-    '''
+    """
+    Real keras layer.
+    """
     from keras import layers
 
     if is_layer(layer, "Dense"):
@@ -576,13 +642,18 @@ def to_real_keras_layer(layer):
         return layers.Flatten()
     if is_layer(layer, "GlobalAveragePooling"):
         return layers.GlobalAveragePooling2D()
+    return None  # note: this is not written by original author, feel free to modify if you think it's incorrect
 
 
 def is_layer(layer, layer_type):
-    '''judge the layer type.
-    Returns:
+    """
+    Judge the layer type.
+
+    Returns
+    -------
+    bool
         boolean -- True or False
-    '''
+    """
 
     if layer_type == "Input":
         return isinstance(layer, StubInput)
@@ -608,11 +679,13 @@ def is_layer(layer, layer_type):
         return isinstance(layer, (StubFlatten,))
     elif layer_type == "GlobalAveragePooling":
         return isinstance(layer, StubGlobalPooling)
+    return None  # note: this is not written by original author, feel free to modify if you think it's incorrect
 
 
 def layer_description_extractor(layer, node_to_id):
-    '''get layer description.
-    '''
+    """
+    Get layer description.
+    """
 
     layer_input = layer.input
     layer_output = layer.output
@@ -645,7 +718,8 @@ def layer_description_extractor(layer, node_to_id):
             layer.units,
         ]
     elif isinstance(layer, (StubBatchNormalization,)):
-        return (type(layer).__name__, layer_input, layer_output, layer.num_features)
+        return (type(layer).__name__, layer_input,
+                layer_output, layer.num_features)
     elif isinstance(layer, (StubDropout,)):
         return (type(layer).__name__, layer_input, layer_output, layer.rate)
     elif isinstance(layer, StubPooling):
@@ -662,9 +736,8 @@ def layer_description_extractor(layer, node_to_id):
 
 
 def layer_description_builder(layer_information, id_to_node):
-    '''build layer from description.
-    '''
-    # pylint: disable=W0123
+    """build layer from description.
+    """
     layer_type = layer_information[0]
 
     layer_input_ids = layer_information[1]
@@ -678,31 +751,32 @@ def layer_description_builder(layer_information, id_to_node):
         filters = layer_information[4]
         kernel_size = layer_information[5]
         stride = layer_information[6]
-        return eval(layer_type)(
+        return globals()[layer_type](
             input_channel, filters, kernel_size, stride, layer_input, layer_output
         )
     elif layer_type.startswith("StubDense"):
         input_units = layer_information[3]
         units = layer_information[4]
-        return eval(layer_type)(input_units, units, layer_input, layer_output)
+        return globals()[layer_type](input_units, units, layer_input, layer_output)
     elif layer_type.startswith("StubBatchNormalization"):
         num_features = layer_information[3]
-        return eval(layer_type)(num_features, layer_input, layer_output)
+        return globals()[layer_type](num_features, layer_input, layer_output)
     elif layer_type.startswith("StubDropout"):
         rate = layer_information[3]
-        return eval(layer_type)(rate, layer_input, layer_output)
+        return globals()[layer_type](rate, layer_input, layer_output)
     elif layer_type.startswith("StubPooling"):
         kernel_size = layer_information[3]
         stride = layer_information[4]
         padding = layer_information[5]
-        return eval(layer_type)(kernel_size, stride, padding, layer_input, layer_output)
+        return globals()[layer_type](kernel_size, stride, padding, layer_input, layer_output)
     else:
-        return eval(layer_type)(layer_input, layer_output)
+        return globals()[layer_type](layer_input, layer_output)
 
 
 def layer_width(layer):
-    '''get layer width.
-    '''
+    """
+    Get layer width.
+    """
 
     if is_layer(layer, "Dense"):
         return layer.units

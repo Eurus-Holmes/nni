@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -65,8 +49,8 @@ export class MockedNNIManager extends Manager {
 
         return deferred.promise;
     }
-    public addCustomizedTrialJob(hyperParams: string): Promise<void> {
-        return Promise.resolve();
+    public addCustomizedTrialJob(hyperParams: string): Promise<number> {
+        return Promise.resolve(99);
     }
 
     public resumeExperiment(): Promise<void> {
@@ -82,12 +66,11 @@ export class MockedNNIManager extends Manager {
             startTime: Date.now(),
             endTime: Date.now(),
             tags: ['test'],
-            // tslint:disable-next-line:no-http-string
             url: 'http://test',
             workingDirectory: '/tmp/mocked',
-            sequenceId: 0,
             form: {
-                jobType: 'TRIAL'
+                sequenceId: 0,
+                hyperParameters: { value: '', index: 0 }
             }
         };
         deferred.resolve(jobDetail);
@@ -129,6 +112,12 @@ export class MockedNNIManager extends Manager {
     public getMetricData(trialJobId: string, metricType: MetricType): Promise<MetricDataRecord[]> {
         throw new MethodNotImplementedError();
     }
+    public getMetricDataByRange(minSeqId: number, maxSeqId: number): Promise<MetricDataRecord[]> {
+        throw new MethodNotImplementedError();
+    }
+    public getLatestMetricData(): Promise<MetricDataRecord[]> {
+        throw new MethodNotImplementedError();
+    }
     public getExperimentProfile(): Promise<ExperimentProfile> {
         const profile: ExperimentProfile = {
             params: {
@@ -148,7 +137,7 @@ export class MockedNNIManager extends Manager {
             execDuration: 0,
             startTime: Date.now(),
             endTime: Date.now(),
-            maxSequenceId: 0,
+            nextSequenceId: 0,
             revision: 0
         };
 

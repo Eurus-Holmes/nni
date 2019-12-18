@@ -1,23 +1,5 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-# associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# ==================================================================================================
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import os
 import sys
@@ -33,7 +15,7 @@ __all__ = ['generate_search_space', 'expand_annotations']
 
 slash = '/'
 if sys.platform == "win32":
-    slash = '\\'        
+    slash = '\\'
 
 def generate_search_space(code_dir):
     """Generate search space from Python source code.
@@ -41,7 +23,7 @@ def generate_search_space(code_dir):
     code_dir: directory path of source files (str)
     """
     search_space = {}
-    
+
     if code_dir.endswith(slash):
         code_dir = code_dir[:-1]
 
@@ -76,15 +58,16 @@ def _generate_file_search_space(path, module):
     return search_space
 
 
-def expand_annotations(src_dir, dst_dir, exp_id='', trial_id=''):
+def expand_annotations(src_dir, dst_dir, exp_id='', trial_id='', nas_mode=None):
     """Expand annotations in user code.
     Return dst_dir if annotation detected; return src_dir if not.
     src_dir: directory path of user code (str)
     dst_dir: directory to place generated files (str)
+    nas_mode: the mode of NAS given that NAS interface is used
     """
     if src_dir[-1] == slash:
         src_dir = src_dir[:-1]
-    
+
     if dst_dir[-1] == slash:
         dst_dir = dst_dir[:-1]
 
@@ -108,7 +91,7 @@ def expand_annotations(src_dir, dst_dir, exp_id='', trial_id=''):
             dst_path = os.path.join(dst_subdir, file_name)
             if file_name.endswith('.py'):
                 if trial_id == '':
-                    annotated |= _expand_file_annotations(src_path, dst_path)
+                    annotated |= _expand_file_annotations(src_path, dst_path, nas_mode)
                 else:
                     module = package + file_name[:-3]
                     annotated |= _generate_specific_file(src_path, dst_path, exp_id, trial_id, module)
@@ -120,10 +103,10 @@ def expand_annotations(src_dir, dst_dir, exp_id='', trial_id=''):
 
     return dst_dir if annotated else src_dir
 
-def _expand_file_annotations(src_path, dst_path):
+def _expand_file_annotations(src_path, dst_path, nas_mode):
     with open(src_path) as src, open(dst_path, 'w') as dst:
         try:
-            annotated_code = code_generator.parse(src.read())
+            annotated_code = code_generator.parse(src.read(), nas_mode)
             if annotated_code is None:
                 shutil.copyfile(src_path, dst_path)
                 return False
@@ -153,4 +136,3 @@ def _generate_specific_file(src_path, dst_path, exp_id, trial_id, module):
                 raise RuntimeError(src_path + ' ' + '\n'.join(str(arg) for arg in exc.args))
             else:
                 raise RuntimeError('Failed to expand annotations for %s: %r' % (src_path, exc))
-

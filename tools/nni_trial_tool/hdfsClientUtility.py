@@ -1,26 +1,8 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import os
 import posixpath
-from pyhdfs import HdfsClient
 from .log_utils import LogType, nni_log
 
 def copyHdfsDirectoryToLocal(hdfsDirectory, localDirectory, hdfsClient):
@@ -40,16 +22,16 @@ def copyHdfsDirectoryToLocal(hdfsDirectory, localDirectory, hdfsClient):
             copyHdfsDirectoryToLocal(subHdfsDirectory, subLocalDirectory, hdfsClient)
         elif f.type == 'FILE':
             hdfsFilePath = posixpath.join(hdfsDirectory, f.pathSuffix)
-            localFilePath = os.path.join(localDirectory, f.pathSuffix)            
+            localFilePath = os.path.join(localDirectory, f.pathSuffix)
             copyHdfsFileToLocal(hdfsFilePath, localFilePath, hdfsClient)
-        else: 
+        else:
             raise AssertionError('unexpected type {}'.format(f.type))
 
 def copyHdfsFileToLocal(hdfsFilePath, localFilePath, hdfsClient, override=True):
     '''Copy file from HDFS to local'''
     if not hdfsClient.exists(hdfsFilePath):
         raise Exception('HDFS file {} does not exist!'.format(hdfsFilePath))
-    try: 
+    try:
         file_status = hdfsClient.get_file_status(hdfsFilePath)
         if file_status.type != 'FILE':
             raise Exception('HDFS file path {} is not a file'.format(hdfsFilePath))
@@ -79,7 +61,8 @@ def copyDirectoryToHdfs(localDirectory, hdfsDirectory, hdfsClient):
             try:
                 result = result and copyDirectoryToHdfs(file_path, hdfs_directory, hdfsClient)
             except Exception as exception:
-                nni_log(LogType.Error, 'Copy local directory {0} to hdfs directory {1} error: {2}'.format(file_path, hdfs_directory, str(exception)))
+                nni_log(LogType.Error,
+                        'Copy local directory {0} to hdfs directory {1} error: {2}'.format(file_path, hdfs_directory, str(exception)))
                 result = False
         else:
             hdfs_file_path = os.path.join(hdfsDirectory, file)

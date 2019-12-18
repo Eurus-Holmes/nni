@@ -1,44 +1,26 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import json
 import os
 import sys
-import shutil
 import string
-from subprocess import Popen, PIPE, call, check_output, check_call, CalledProcessError
-import tempfile
-from nni.constants import ModuleName, AdvisorModuleName
-from nni_annotation import *
-from .launcher_utils import validate_all_content
-from .rest_utils import rest_put, rest_post, check_rest_server, check_rest_server_quick, check_response
-from .url_utils import cluster_metadata_url, experiment_url, get_local_urls
-from .config_utils import Config, Experiments
-from .common_utils import get_yml_content, get_json_content, print_error, print_normal, print_warning, detect_process, detect_port, get_user, get_python_dir
-from .constants import *
 import random
 import site
 import time
-from pathlib import Path
+import tempfile
+from subprocess import Popen, check_call, CalledProcessError
+from nni_annotation import expand_annotations, generate_search_space
+from nni.constants import ModuleName, AdvisorModuleName
+from .launcher_utils import validate_all_content
+from .rest_utils import rest_put, rest_post, check_rest_server, check_response
+from .url_utils import cluster_metadata_url, experiment_url, get_local_urls
+from .config_utils import Config, Experiments
+from .common_utils import get_yml_content, get_json_content, print_error, print_normal, \
+                          detect_port, get_user, get_python_dir
+from .constants import NNICTL_HOME_DIR, ERROR_INFO, REST_TIME_OUT, EXPERIMENT_SUCCESS_INFO, LOG_HEADER, PACKAGE_REQUIREMENTS
 from .command_utils import check_output_command, kill_command
+from .nnictl_utils import update_experiment
 
 def get_log_path(config_file_name):
     '''generate stdout and stderr log path'''
@@ -82,7 +64,8 @@ def get_nni_installation_path():
         python_dir = os.getenv('VIRTUAL_ENV')
     else:
         python_sitepackage = site.getsitepackages()[0]
-        # If system-wide python is used, we will give priority to using `local sitepackage`--"usersitepackages()" given that nni exists there
+        # If system-wide python is used, we will give priority to using `local sitepackage`--"usersitepackages()" given
+        # that nni exists there
         if python_sitepackage.startswith('/usr') or python_sitepackage.startswith('/Library'):
             python_dir = try_installation_path_sequentially(site.getusersitepackages(), site.getsitepackages()[0])
         else:
@@ -97,12 +80,11 @@ def get_nni_installation_path():
 
 def start_rest_server(port, platform, mode, config_file_name, experiment_id=None, log_dir=None, log_level=None):
     '''Run nni manager process'''
-    nni_config = Config(config_file_name)
     if detect_port(port):
         print_error('Port %s is used by another process, please reset the port!\n' \
         'You could use \'nnictl create --help\' to get help information' % port)
         exit(1)
-    
+
     if (platform != 'local') and detect_port(int(port) + 1):
         print_error('PAI mode need an additional adjacent port %d, and the port %d is used by another process!\n' \
         'You could set another port to start experiment!\n' \
@@ -110,23 +92,28 @@ def start_rest_server(port, platform, mode, config_file_name, experiment_id=None
         exit(1)
 
     print_normal('Starting restful server...')
-    
+
     entry_dir = get_nni_installation_path()
     entry_file = os.path.join(entry_dir, 'main.js')
-    
+
     node_command = 'node'
     if sys.platform == 'win32':
         node_command = os.path.join(entry_dir[:-3], 'Scripts', 'node.exe')
-    cmds = [node_command, entry_file, '--port', str(port), '--mode', platform, '--start_mode', mode]
+    cmds = [node_command, entry_file, '--port', str(port), '--mode', platform]
+    if mode == 'view':
+        cmds += ['--start_mode', 'resume']
+        cmds += ['--readonly', 'true']
+    else:
+        cmds += ['--start_mode', mode]
     if log_dir is not None:
         cmds += ['--log_dir', log_dir]
     if log_level is not None:
         cmds += ['--log_level', log_level]
-    if mode == 'resume':
+    if mode in ['resume', 'view']:
         cmds += ['--experiment_id', experiment_id]
     stdout_full_path, stderr_full_path = get_log_path(config_file_name)
     with open(stdout_full_path, 'a+') as stdout_file, open(stderr_full_path, 'a+') as stderr_file:
-        time_now = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+        time_now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
         #add time information in the header of log files
         log_header = LOG_HEADER % str(time_now)
         stdout_file.write(log_header)
@@ -155,7 +142,6 @@ def set_trial_config(experiment_config, port, config_file_name):
 
 def set_local_config(experiment_config, port, config_file_name):
     '''set local configuration'''
-    #set machine_list
     request_data = dict()
     if experiment_config.get('localConfig'):
         request_data['local_config'] = experiment_config['localConfig']
@@ -176,7 +162,7 @@ def set_local_config(experiment_config, port, config_file_name):
                     fout.write(json.dumps(json.loads(err_message), indent=4, sort_keys=True, separators=(',', ':')))
             return False, err_message
 
-    return set_trial_config(experiment_config, port, config_file_name)
+    return set_trial_config(experiment_config, port, config_file_name), None
 
 def set_remote_config(experiment_config, port, config_file_name):
     '''Call setClusterMetadata to pass trial'''
@@ -207,7 +193,7 @@ def setNNIManagerIp(experiment_config, port, config_file_name):
     if experiment_config.get('nniManagerIp') is None:
         return True, None
     ip_config_dict = dict()
-    ip_config_dict['nni_manager_ip'] = { 'nniManagerIp' : experiment_config['nniManagerIp'] }
+    ip_config_dict['nni_manager_ip'] = {'nniManagerIp': experiment_config['nniManagerIp']}
     response = rest_put(cluster_metadata_url(port), json.dumps(ip_config_dict), REST_TIME_OUT)
     err_message = None
     if not response or not response.status_code == 200:
@@ -220,7 +206,7 @@ def setNNIManagerIp(experiment_config, port, config_file_name):
     return True, None
 
 def set_pai_config(experiment_config, port, config_file_name):
-    '''set pai configuration''' 
+    '''set pai configuration'''
     pai_config_data = dict()
     pai_config_data['pai_config'] = experiment_config['paiConfig']
     response = rest_put(cluster_metadata_url(port), json.dumps(pai_config_data), REST_TIME_OUT)
@@ -239,7 +225,7 @@ def set_pai_config(experiment_config, port, config_file_name):
     return set_trial_config(experiment_config, port, config_file_name), err_message
 
 def set_kubeflow_config(experiment_config, port, config_file_name):
-    '''set kubeflow configuration''' 
+    '''set kubeflow configuration'''
     kubeflow_config_data = dict()
     kubeflow_config_data['kubeflow_config'] = experiment_config['kubeflowConfig']
     response = rest_put(cluster_metadata_url(port), json.dumps(kubeflow_config_data), REST_TIME_OUT)
@@ -258,7 +244,7 @@ def set_kubeflow_config(experiment_config, port, config_file_name):
     return set_trial_config(experiment_config, port, config_file_name), err_message
 
 def set_frameworkcontroller_config(experiment_config, port, config_file_name):
-    '''set kubeflow configuration''' 
+    '''set kubeflow configuration'''
     frameworkcontroller_config_data = dict()
     frameworkcontroller_config_data['frameworkcontroller_config'] = experiment_config['frameworkcontrollerConfig']
     response = rest_put(cluster_metadata_url(port), json.dumps(frameworkcontroller_config_data), REST_TIME_OUT)
@@ -295,13 +281,26 @@ def set_experiment(experiment_config, mode, port, config_file_name):
         request_data['multiThread'] = experiment_config.get('multiThread')
     if experiment_config.get('advisor'):
         request_data['advisor'] = experiment_config['advisor']
+        if request_data['advisor'].get('gpuNum'):
+            print_error('gpuNum is deprecated, please use gpuIndices instead.')
+        if request_data['advisor'].get('gpuIndices') and isinstance(request_data['advisor'].get('gpuIndices'), int):
+            request_data['advisor']['gpuIndices'] = str(request_data['advisor'].get('gpuIndices'))
     else:
         request_data['tuner'] = experiment_config['tuner']
+        if request_data['tuner'].get('gpuNum'):
+            print_error('gpuNum is deprecated, please use gpuIndices instead.')
+        if request_data['tuner'].get('gpuIndices') and isinstance(request_data['tuner'].get('gpuIndices'), int):
+            request_data['tuner']['gpuIndices'] = str(request_data['tuner'].get('gpuIndices'))
         if 'assessor' in experiment_config:
             request_data['assessor'] = experiment_config['assessor']
+            if request_data['assessor'].get('gpuNum'):
+                print_error('gpuNum is deprecated, please remove it from your config file.')
     #debug mode should disable version check
     if experiment_config.get('debug') is not None:
         request_data['versionCheck'] = not experiment_config.get('debug')
+    #validate version check
+    if experiment_config.get('versionCheck') is not None:
+        request_data['versionCheck'] = experiment_config.get('versionCheck')
     if experiment_config.get('logCollection'):
         request_data['logCollection'] = experiment_config.get('logCollection')
 
@@ -318,7 +317,7 @@ def set_experiment(experiment_config, mode, port, config_file_name):
             {'key': 'trial_config', 'value': experiment_config['trial']})
     elif experiment_config['trainingServicePlatform'] == 'pai':
         request_data['clusterMetaData'].append(
-            {'key': 'pai_config', 'value': experiment_config['paiConfig']})        
+            {'key': 'pai_config', 'value': experiment_config['paiConfig']})
         request_data['clusterMetaData'].append(
             {'key': 'trial_config', 'value': experiment_config['trial']})
     elif experiment_config['trainingServicePlatform'] == 'kubeflow':
@@ -331,7 +330,6 @@ def set_experiment(experiment_config, mode, port, config_file_name):
             {'key': 'frameworkcontroller_config', 'value': experiment_config['frameworkcontrollerConfig']})
         request_data['clusterMetaData'].append(
             {'key': 'trial_config', 'value': experiment_config['trial']})
-
     response = rest_post(experiment_url(port), json.dumps(request_data), REST_TIME_OUT, show_error=True)
     if check_response(response):
         return response
@@ -343,16 +341,36 @@ def set_experiment(experiment_config, mode, port, config_file_name):
             print_error('Setting experiment error, error message is {}'.format(response.text))
         return None
 
+def set_platform_config(platform, experiment_config, port, config_file_name, rest_process):
+    '''call set_cluster_metadata for specific platform'''
+    print_normal('Setting {0} config...'.format(platform))
+    config_result, err_msg = None, None
+    if platform == 'local':
+        config_result, err_msg = set_local_config(experiment_config, port, config_file_name)
+    elif platform == 'remote':
+        config_result, err_msg = set_remote_config(experiment_config, port, config_file_name)
+    elif platform == 'pai':
+        config_result, err_msg = set_pai_config(experiment_config, port, config_file_name)
+    elif platform == 'kubeflow':
+        config_result, err_msg = set_kubeflow_config(experiment_config, port, config_file_name)
+    elif platform == 'frameworkcontroller':
+        config_result, err_msg = set_frameworkcontroller_config(experiment_config, port, config_file_name)
+    else:
+        raise Exception(ERROR_INFO % 'Unsupported platform!')
+        exit(1)
+    if config_result:
+        print_normal('Successfully set {0} config!'.format(platform))
+    else:
+        print_error('Failed! Error is: {}'.format(err_msg))
+        try:
+            kill_command(rest_process.pid)
+        except Exception:
+            raise Exception(ERROR_INFO % 'Rest server stopped!')
+        exit(1)
+
 def launch_experiment(args, experiment_config, mode, config_file_name, experiment_id=None):
     '''follow steps to start rest server and start experiment'''
     nni_config = Config(config_file_name)
-    # check execution policy in powershell
-    if sys.platform == 'win32':
-        execution_policy = check_output(['powershell.exe','Get-ExecutionPolicy']).decode('ascii').strip()
-        if execution_policy == 'Restricted':
-            print_error('PowerShell execution policy error, please run PowerShell as administrator with this command first:\r\n'\
-                + '\'Set-ExecutionPolicy -ExecutionPolicy Unrestricted\'')
-            exit(1)
     # check packages for tuner
     package_name, module_name = None, None
     if experiment_config.get('tuner') and experiment_config['tuner'].get('builtinTunerName'):
@@ -363,16 +381,25 @@ def launch_experiment(args, experiment_config, mode, config_file_name, experimen
         module_name = AdvisorModuleName.get(package_name)
     if package_name and module_name:
         try:
-            check_call([sys.executable, '-c', 'import %s'%(module_name)], stdout=PIPE, stderr=PIPE)
-        except CalledProcessError as e:
-            print_error('%s should be installed through \'nnictl package install --name %s\''%(package_name, package_name))
+            stdout_full_path, stderr_full_path = get_log_path(config_file_name)
+            with open(stdout_full_path, 'a+') as stdout_file, open(stderr_full_path, 'a+') as stderr_file:
+                check_call([sys.executable, '-c', 'import %s'%(module_name)], stdout=stdout_file, stderr=stderr_file)
+        except CalledProcessError:
+            print_error('some errors happen when import package %s.' %(package_name))
+            print_log_content(config_file_name)
+            if package_name in PACKAGE_REQUIREMENTS:
+                print_error('If %s is not installed, it should be installed through '\
+                            '\'nnictl package install --name %s\''%(package_name, package_name))
             exit(1)
     log_dir = experiment_config['logDir'] if experiment_config.get('logDir') else None
     log_level = experiment_config['logLevel'] if experiment_config.get('logLevel') else None
-    if log_level not in ['trace', 'debug'] and args.debug:
-        log_level = 'debug'
+    #view experiment mode do not need debug function, when view an experiment, there will be no new logs created
+    if mode != 'view':
+        if log_level not in ['trace', 'debug'] and (args.debug or experiment_config.get('debug') is True):
+            log_level = 'debug'
     # start rest server
-    rest_process, start_time = start_rest_server(args.port, experiment_config['trainingServicePlatform'], mode, config_file_name, experiment_id, log_dir, log_level)
+    rest_process, start_time = start_rest_server(args.port, experiment_config['trainingServicePlatform'], \
+                                                 mode, config_file_name, experiment_id, log_dir, log_level)
     nni_config.set_config('restServerPid', rest_process.pid)
     # Deal with annotation
     if experiment_config.get('useAnnotation'):
@@ -380,7 +407,8 @@ def launch_experiment(args, experiment_config, mode, config_file_name, experimen
         if not os.path.isdir(path):
             os.makedirs(path)
         path = tempfile.mkdtemp(dir=path)
-        code_dir = expand_annotations(experiment_config['trial']['codeDir'], path)
+        nas_mode = experiment_config['trial'].get('nasMode', 'classic_mode')
+        code_dir = expand_annotations(experiment_config['trial']['codeDir'], path, nas_mode=nas_mode)
         experiment_config['trial']['codeDir'] = code_dir
         search_space = generate_search_space(code_dir)
         experiment_config['searchSpace'] = json.dumps(search_space)
@@ -403,83 +431,15 @@ def launch_experiment(args, experiment_config, mode, config_file_name, experimen
         except Exception:
             raise Exception(ERROR_INFO % 'Rest server stopped!')
         exit(1)
-
-    # set remote config
-    if experiment_config['trainingServicePlatform'] == 'remote':
-        print_normal('Setting remote config...')
-        config_result, err_msg = set_remote_config(experiment_config, args.port, config_file_name)
-        if config_result:
-            print_normal('Successfully set remote config!')
-        else:
-            print_error('Failed! Error is: {}'.format(err_msg))
-            try:
-                kill_command(rest_process.pid)
-            except Exception:
-                raise Exception(ERROR_INFO % 'Rest server stopped!')
-            exit(1)
-
-    # set local config
-    if experiment_config['trainingServicePlatform'] == 'local':
-        print_normal('Setting local config...')
-        if set_local_config(experiment_config, args.port, config_file_name):
-            print_normal('Successfully set local config!')
-        else:
-            print_error('Set local config failed!')
-            try:
-                kill_command(rest_process.pid)
-            except Exception:
-                raise Exception(ERROR_INFO % 'Rest server stopped!')
-            exit(1)
-    
-    #set pai config
-    if experiment_config['trainingServicePlatform'] == 'pai':
-        print_normal('Setting pai config...')
-        config_result, err_msg = set_pai_config(experiment_config, args.port, config_file_name)
-        if config_result:
-            print_normal('Successfully set pai config!')
-        else:
-            if err_msg:
-                print_error('Failed! Error is: {}'.format(err_msg))
-            try:
-                kill_command(rest_process.pid)
-            except Exception:
-                raise Exception(ERROR_INFO % 'Restful server stopped!')
-            exit(1)
-    
-    #set kubeflow config
-    if experiment_config['trainingServicePlatform'] == 'kubeflow':
-        print_normal('Setting kubeflow config...')
-        config_result, err_msg = set_kubeflow_config(experiment_config, args.port, config_file_name)
-        if config_result:
-            print_normal('Successfully set kubeflow config!')
-        else:
-            if err_msg:
-                print_error('Failed! Error is: {}'.format(err_msg))
-            try:
-                kill_command(rest_process.pid)
-            except Exception:
-                raise Exception(ERROR_INFO % 'Restful server stopped!')
-            exit(1)
-    
-        #set kubeflow config
-    if experiment_config['trainingServicePlatform'] == 'frameworkcontroller':
-        print_normal('Setting frameworkcontroller config...')
-        config_result, err_msg = set_frameworkcontroller_config(experiment_config, args.port, config_file_name)
-        if config_result:
-            print_normal('Successfully set frameworkcontroller config!')
-        else:
-            if err_msg:
-                print_error('Failed! Error is: {}'.format(err_msg))
-            try:
-                kill_command(rest_process.pid)
-            except Exception:
-                raise Exception(ERROR_INFO % 'Restful server stopped!')
-            exit(1)
+    if mode != 'view':
+        # set platform configuration
+        set_platform_config(experiment_config['trainingServicePlatform'], experiment_config, args.port,\
+                            config_file_name, rest_process)
 
     # start a new experiment
     print_normal('Starting experiment...')
     # set debug configuration
-    if experiment_config.get('debug') is None:
+    if mode != 'view' and experiment_config.get('debug') is None:
         experiment_config['debug'] = args.debug
     response = set_experiment(experiment_config, mode, args.port, config_file_name)
     if response:
@@ -499,41 +459,14 @@ def launch_experiment(args, experiment_config, mode, config_file_name, experimen
     else:
         web_ui_url_list = get_local_urls(args.port)
     nni_config.set_config('webuiUrl', web_ui_url_list)
-    
-    #save experiment information
+
+    # save experiment information
     nnictl_experiment_config = Experiments()
-    nnictl_experiment_config.add_experiment(experiment_id, args.port, start_time, config_file_name, experiment_config['trainingServicePlatform'])
+    nnictl_experiment_config.add_experiment(experiment_id, args.port, start_time, config_file_name,
+                                            experiment_config['trainingServicePlatform'],
+                                            experiment_config['experimentName'])
 
     print_normal(EXPERIMENT_SUCCESS_INFO % (experiment_id, '   '.join(web_ui_url_list)))
-
-def resume_experiment(args):
-    '''resume an experiment'''
-    experiment_config = Experiments()
-    experiment_dict = experiment_config.get_all_experiments()
-    experiment_id = None
-    experiment_endTime = None
-    #find the latest stopped experiment
-    if not args.id:
-        print_error('Please set experiment id! \nYou could use \'nnictl resume {id}\' to resume a stopped experiment!\n' \
-        'You could use \'nnictl experiment list all\' to show all of stopped experiments!')
-        exit(1)
-    else:
-        if experiment_dict.get(args.id) is None:
-            print_error('Id %s not exist!' % args.id)
-            exit(1)
-        if experiment_dict[args.id]['status'] != 'STOPPED':
-            print_error('Experiment %s is running!' % args.id)
-            exit(1)
-        experiment_id = args.id
-    print_normal('Resuming experiment %s...' % experiment_id)
-    nni_config = Config(experiment_dict[experiment_id]['fileName'])
-    experiment_config = nni_config.get_config('experimentConfig')
-    experiment_id = nni_config.get_config('experimentId')
-    new_config_file_name = ''.join(random.sample(string.ascii_letters + string.digits, 8))
-    new_nni_config = Config(new_config_file_name)
-    new_nni_config.set_config('experimentConfig', experiment_config)
-    launch_experiment(args, experiment_config, 'resume', new_config_file_name, experiment_id)
-    new_nni_config.set_config('restServerPort', args.port)
 
 def create_experiment(args):
     '''start a new experiment'''
@@ -549,3 +482,40 @@ def create_experiment(args):
     nni_config.set_config('experimentConfig', experiment_config)
     launch_experiment(args, experiment_config, 'new', config_file_name)
     nni_config.set_config('restServerPort', args.port)
+
+def manage_stopped_experiment(args, mode):
+    '''view a stopped experiment'''
+    update_experiment()
+    experiment_config = Experiments()
+    experiment_dict = experiment_config.get_all_experiments()
+    experiment_id = None
+    #find the latest stopped experiment
+    if not args.id:
+        print_error('Please set experiment id! \nYou could use \'nnictl {0} {id}\' to {0} a stopped experiment!\n' \
+        'You could use \'nnictl experiment list --all\' to show all experiments!'.format(mode))
+        exit(1)
+    else:
+        if experiment_dict.get(args.id) is None:
+            print_error('Id %s not exist!' % args.id)
+            exit(1)
+        if experiment_dict[args.id]['status'] != 'STOPPED':
+            print_error('Only stopped experiments can be {0}ed!'.format(mode))
+            exit(1)
+        experiment_id = args.id
+    print_normal('{0} experiment {1}...'.format(mode, experiment_id))
+    nni_config = Config(experiment_dict[experiment_id]['fileName'])
+    experiment_config = nni_config.get_config('experimentConfig')
+    experiment_id = nni_config.get_config('experimentId')
+    new_config_file_name = ''.join(random.sample(string.ascii_letters + string.digits, 8))
+    new_nni_config = Config(new_config_file_name)
+    new_nni_config.set_config('experimentConfig', experiment_config)
+    launch_experiment(args, experiment_config, mode, new_config_file_name, experiment_id)
+    new_nni_config.set_config('restServerPort', args.port)
+
+def view_experiment(args):
+    '''view a stopped experiment'''
+    manage_stopped_experiment(args, 'view')
+
+def resume_experiment(args):
+    '''resume an experiment'''
+    manage_stopped_experiment(args, 'resume')

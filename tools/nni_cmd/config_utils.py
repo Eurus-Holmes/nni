@@ -1,27 +1,8 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import os
 import json
-import shutil
 from .constants import NNICTL_HOME_DIR
 
 class Config:
@@ -73,35 +54,36 @@ class Experiments:
         self.experiment_file = os.path.join(NNICTL_HOME_DIR, '.experiment')
         self.experiments = self.read_file()
 
-    def add_experiment(self, id, port, time, file_name, platform):
+    def add_experiment(self, expId, port, time, file_name, platform, experiment_name):
         '''set {key:value} paris to self.experiment'''
-        self.experiments[id] = {}
-        self.experiments[id]['port'] = port
-        self.experiments[id]['startTime'] = time
-        self.experiments[id]['endTime'] = 'N/A'
-        self.experiments[id]['status'] = 'INITIALIZED'
-        self.experiments[id]['fileName'] = file_name
-        self.experiments[id]['platform'] = platform
+        self.experiments[expId] = {}
+        self.experiments[expId]['port'] = port
+        self.experiments[expId]['startTime'] = time
+        self.experiments[expId]['endTime'] = 'N/A'
+        self.experiments[expId]['status'] = 'INITIALIZED'
+        self.experiments[expId]['fileName'] = file_name
+        self.experiments[expId]['platform'] = platform
+        self.experiments[expId]['experimentName'] = experiment_name
         self.write_file()
-    
-    def update_experiment(self, id, key, value):
+
+    def update_experiment(self, expId, key, value):
         '''Update experiment'''
-        if id not in self.experiments:
+        if expId not in self.experiments:
             return False
-        self.experiments[id][key] = value
+        self.experiments[expId][key] = value
         self.write_file()
         return True
-    
-    def remove_experiment(self, id):
+
+    def remove_experiment(self, expId):
         '''remove an experiment by id'''
         if id in self.experiments:
-            self.experiments.pop(id)
+            self.experiments.pop(expId)
         self.write_file()
-        
+
     def get_all_experiments(self):
         '''return all of experiments'''
         return self.experiments
-    
+
     def write_file(self):
         '''save config to local file'''
         try:
@@ -109,7 +91,7 @@ class Experiments:
                 json.dump(self.experiments, file)
         except IOError as error:
             print('Error:', error)
-            return
+            return ''
 
     def read_file(self):
         '''load config from local file'''
@@ -119,4 +101,4 @@ class Experiments:
                     return json.load(file)
             except ValueError:
                 return {}
-        return {} 
+        return {}

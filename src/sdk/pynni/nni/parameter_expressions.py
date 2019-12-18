@@ -1,22 +1,6 @@
-# Copyright (c) Microsoft Corporation
-# All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge,
-# to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and
-# to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
-# BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
+
 '''
 parameter_expression.py
 '''
@@ -32,12 +16,14 @@ def choice(options, random_state):
     return random_state.choice(options)
 
 
-def randint(upper, random_state):
+def randint(lower, upper, random_state):
     '''
+    Generate a random integer from `lower` (inclusive) to `upper` (exclusive).
+    lower: an int that represent an lower bound
     upper: an int that represent an upper bound
     random_state: an object of numpy.random.RandomState
     '''
-    return random_state.randint(upper)
+    return random_state.randint(lower, upper)
 
 
 def uniform(low, high, random_state):
@@ -46,7 +32,7 @@ def uniform(low, high, random_state):
     high: an float that represent an upper bound
     random_state: an object of numpy.random.RandomState
     '''
-    assert high > low, 'Upper bound must be larger than lower bound'
+    assert high >= low, 'Upper bound must be larger than lower bound'
     return random_state.uniform(low, high)
 
 
@@ -57,7 +43,7 @@ def quniform(low, high, q, random_state):
     q: sample step
     random_state: an object of numpy.random.RandomState
     '''
-    return np.round(uniform(low, high, random_state) / q) * q
+    return np.clip(np.round(uniform(low, high, random_state) / q) * q, low, high)
 
 
 def loguniform(low, high, random_state):
@@ -77,7 +63,7 @@ def qloguniform(low, high, q, random_state):
     q: sample step
     random_state: an object of numpy.random.RandomState
     '''
-    return np.round(loguniform(low, high, random_state) / q) * q
+    return np.clip(np.round(loguniform(low, high, random_state) / q) * q, low, high)
 
 
 def normal(mu, sigma, random_state):

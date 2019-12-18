@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -29,7 +13,7 @@ import { getBasePort } from './experimentStartupInfo';
 
 /**
  * Abstraction class to create a RestServer
- * The module who wants to use a RestServer could <b>extends</b> this abstract class 
+ * The module who wants to use a RestServer could <b>extends</b> this abstract class
  * And implement its own registerRestHandler() function to register routers
  */
 export abstract class RestServer {
@@ -43,14 +27,13 @@ export abstract class RestServer {
     protected app: express.Application = express();
     protected log: Logger = getLogger();
     protected basePort?: number;
-    
+
     constructor() {
         this.port = getBasePort();
         assert(this.port && this.port > 1024);
     }
 
     get endPoint(): string {
-        // tslint:disable-next-line:no-http-string
         return `http://${this.hostName}:${this.port}`;
     }
 
@@ -91,9 +74,9 @@ export abstract class RestServer {
         } else {
             this.startTask.promise.then(
                 () => { // Started
-                    //Stops the server from accepting new connections and keeps existing connections. 
-                    //This function is asynchronous, the server is finally closed when all connections 
-                    //are ended and the server emits a 'close' event. 
+                    //Stops the server from accepting new connections and keeps existing connections.
+                    //This function is asynchronous, the server is finally closed when all connections
+                    //are ended and the server emits a 'close' event.
                     //Refer https://nodejs.org/docs/latest/api/net.html#net_server_close_callback
                     this.server.close().on('close', () => {
                         this.log.info('Rest server stopped.');

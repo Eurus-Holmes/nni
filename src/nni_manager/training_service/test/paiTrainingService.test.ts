@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -24,6 +8,7 @@ import * as chaiAsPromised from 'chai-as-promised';
 import * as fs from 'fs';
 import * as tmp from 'tmp';
 import * as component from '../../common/component';
+import { TrialJobApplicationForm } from '../../common/trainingService';
 import { cleanupUnitTest, prepareUnitTest } from '../../common/utils';
 import { TrialConfigMetadataKey } from '../common/trialConfigMetadataKey';
 import { PAITrainingService } from '../pai/paiTrainingService';
@@ -84,12 +69,16 @@ describe('Unit Test for PAITrainingService', () => {
         console.log(`paiCluster is ${paiCluster}`)
         await paiTrainingService.setClusterMetadata(TrialConfigMetadataKey.PAI_CLUSTER_CONFIG, paiCluster);
         await paiTrainingService.setClusterMetadata(TrialConfigMetadataKey.TRIAL_CONFIG, paiTrialConfig);
+        const form: TrialJobApplicationForm = {
+            sequenceId: 0,
+            hyperParameters: { value: '', index: 0 }
+        };
         try {
-            const trialDetail = await paiTrainingService.submitTrialJob({jobType : 'TRIAL'});
+            const trialDetail = await paiTrainingService.submitTrialJob(form);
             chai.expect(trialDetail.status).to.be.equals('WAITING');
         } catch(error) {
             console.log('Submit job failed:' + error);
-            chai.assert(error)            
+            chai.assert(error)
         }
     });
 });

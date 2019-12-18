@@ -1,27 +1,10 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-#
-# MIT License
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-# associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
-# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# ==================================================================================================
-
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT license.
 
 import ast
-import astor
 import numbers
+
+import astor
 
 # pylint: disable=unidiomatic-typecheck
 
@@ -57,13 +40,12 @@ class SearchSpaceGenerator(ast.NodeTransformer):
         key = self.module_name + '/' + mutable_block
         args[0].s = key
         if key not in self.search_space:
-            self.search_space[key] = dict()
-        self.search_space[key][mutable_layer] = {
+            self.search_space[key] = {'_type': 'mutable_layer', '_value': {}}
+        self.search_space[key]['_value'][mutable_layer] = {
             'layer_choice': [k.s for k in args[2].keys],
             'optional_inputs': [k.s for k in args[5].keys],
             'optional_input_size': args[6].n if isinstance(args[6], ast.Num) else [args[6].elts[0].n, args[6].elts[1].n]
         }
-
 
     def visit_Call(self, node):  # pylint: disable=invalid-name
         self.generic_visit(node)
@@ -108,7 +90,7 @@ class SearchSpaceGenerator(ast.NodeTransformer):
         else:
             # arguments of other functions must be literal number
             assert all(isinstance(ast.literal_eval(astor.to_source(arg)), numbers.Real) for arg in node.args), \
-            'Smart parameter\'s arguments must be number literals'
+                'Smart parameter\'s arguments must be number literals'
             args = [ast.literal_eval(astor.to_source(arg)) for arg in node.args]
 
         key = self.module_name + '/' + name + '/' + func

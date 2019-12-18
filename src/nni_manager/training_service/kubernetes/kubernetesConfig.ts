@@ -1,21 +1,5 @@
-/**
- * Copyright (c) Microsoft Corporation
- * All rights reserved.
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
- * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
 'use strict';
 
@@ -25,13 +9,13 @@ import { MethodNotImplementedError } from '../../common/errors';
 export abstract class KubernetesClusterConfig {
     public readonly storage?: KubernetesStorageKind;
     public readonly apiVersion: string;
-    
+
     constructor(apiVersion: string, storage?: KubernetesStorageKind) {
         this.storage = storage;
         this.apiVersion = apiVersion;
     }
 
-    public get storageType(): KubernetesStorageKind{
+    public get storageType(): KubernetesStorageKind {
         throw new MethodNotImplementedError();
     }
 }
@@ -48,7 +32,7 @@ export class KubernetesClusterConfigNFS extends KubernetesClusterConfig {
     public readonly nfs: NFSConfig;
 
     constructor(
-            apiVersion: string, 
+            apiVersion: string,
             nfs: NFSConfig,
             storage?: KubernetesStorageKind
         ) {
@@ -56,12 +40,13 @@ export class KubernetesClusterConfigNFS extends KubernetesClusterConfig {
         this.nfs = nfs;
     }
 
-    public get storageType(): KubernetesStorageKind{
+    public get storageType(): KubernetesStorageKind {
         return 'nfs';
     }
 
     public static getInstance(jsonObject: object): KubernetesClusterConfigNFS {
-        let kubernetesClusterConfigObjectNFS = <KubernetesClusterConfigNFS>jsonObject;
+        const kubernetesClusterConfigObjectNFS: KubernetesClusterConfigNFS = <KubernetesClusterConfigNFS>jsonObject;
+
         return new KubernetesClusterConfigNFS(
             kubernetesClusterConfigObjectNFS.apiVersion,
             kubernetesClusterConfigObjectNFS.nfs,
@@ -71,31 +56,36 @@ export class KubernetesClusterConfigNFS extends KubernetesClusterConfig {
 }
 
 export class KubernetesClusterConfigAzure extends KubernetesClusterConfig {
-    public readonly keyVault: keyVaultConfig;
+    public readonly keyVault: KeyVaultConfig;
     public readonly azureStorage: AzureStorage;
-    
+    public readonly uploadRetryCount: number | undefined;
+
     constructor(
-            apiVersion: string, 
-            keyVault: keyVaultConfig, 
-            azureStorage: AzureStorage, 
-            storage?: KubernetesStorageKind
+            apiVersion: string,
+            keyVault: KeyVaultConfig,
+            azureStorage: AzureStorage,
+            storage?: KubernetesStorageKind,
+            uploadRetryCount?: number
         ) {
         super(apiVersion, storage);
         this.keyVault = keyVault;
         this.azureStorage = azureStorage;
+        this.uploadRetryCount = uploadRetryCount;
     }
 
-    public get storageType(): KubernetesStorageKind{
+    public get storageType(): KubernetesStorageKind {
         return 'azureStorage';
     }
 
     public static getInstance(jsonObject: object): KubernetesClusterConfigAzure {
-        let kubernetesClusterConfigObjectAzure = <KubernetesClusterConfigAzure>jsonObject;
+        const kubernetesClusterConfigObjectAzure: KubernetesClusterConfigAzure = <KubernetesClusterConfigAzure>jsonObject;
+
         return new KubernetesClusterConfigAzure(
             kubernetesClusterConfigObjectAzure.apiVersion,
             kubernetesClusterConfigObjectAzure.keyVault,
             kubernetesClusterConfigObjectAzure.azureStorage,
-            kubernetesClusterConfigObjectAzure.storage
+            kubernetesClusterConfigObjectAzure.storage,
+            kubernetesClusterConfigObjectAzure.uploadRetryCount
         );
     }
 }
@@ -103,14 +93,16 @@ export class KubernetesClusterConfigAzure extends KubernetesClusterConfig {
 export class KubernetesClusterConfigFactory {
 
     public static generateKubernetesClusterConfig(jsonObject: object): KubernetesClusterConfig {
-         let storageConfig = <StorageConfig>jsonObject;
-         switch(storageConfig.storage) {
+         const storageConfig: StorageConfig = <StorageConfig>jsonObject;
+         switch (storageConfig.storage) {
             case 'azureStorage':
                 return KubernetesClusterConfigAzure.getInstance(jsonObject);
-            case  'nfs' || undefined :
+            case 'nfs':
+            case undefined:
                 return KubernetesClusterConfigNFS.getInstance(jsonObject);
+            default:
+                throw new Error(`Invalid json object ${jsonObject}`);
          }
-         throw new Error(`Invalid json object ${jsonObject}`);
     }
 }
 
@@ -118,12 +110,12 @@ export class KubernetesClusterConfigFactory {
  * NFS configuration to store Kubeflow job related files
  */
 export class NFSConfig {
-    /** IP Adress of NFS server */
-    public readonly server : string;
-    /** exported NFS path on NFS server */
-    public readonly path : string;
+    // IP Adress of NFS server
+    public readonly server: string;
+    // exported NFS path on NFS server
+    public readonly path: string;
 
-    constructor(server : string, path : string) {
+    constructor(server: string, path: string) {
         this.server = server;
         this.path = path;
     }
@@ -133,13 +125,13 @@ export class NFSConfig {
  * KeyVault configuration to store the key of Azure Storage Service
  * Refer https://docs.microsoft.com/en-us/azure/key-vault/key-vault-manage-with-cli2
  */
-export class keyVaultConfig {
-    /**The vault-name to specify vault */
-    public readonly vaultName : string;
-    /**The name to specify private key */
-    public readonly name : string;
+export class KeyVaultConfig {
+    // The vault-name to specify vault
+    public readonly vaultName: string;
+    // The name to specify private key
+    public readonly name: string;
 
-    constructor(vaultName : string, name : string){
+    constructor(vaultName: string, name: string) {
         this.vaultName = vaultName;
         this.name = name;
     }
@@ -149,12 +141,12 @@ export class keyVaultConfig {
  * Azure Storage Service
  */
 export class AzureStorage {
-    /**The azure share to storage files */
-    public readonly azureShare : string;
-    
-    /**The account name of sotrage service */
+    // The azure share to storage files
+    public readonly azureShare: string;
+
+    // The account name of sotrage service
     public readonly accountName: string;
-    constructor(azureShare : string, accountName: string){
+    constructor(azureShare: string, accountName: string) {
         this.azureShare = azureShare;
         this.accountName = accountName;
     }
@@ -164,28 +156,32 @@ export class AzureStorage {
  * Trial job configuration for Kubernetes
  */
 export class KubernetesTrialConfigTemplate {
-    /** CPU number */
+    // CPU number
     public readonly cpuNum: number;
 
-    /** Memory  */
+    // Memory
     public readonly memoryMB: number;
 
-    /** Docker image */
+    // Docker image
     public readonly image: string;
 
-    /** Trail command */
-    public readonly command : string;
+    // Private registry config file path to download docker iamge
+    public readonly privateRegistryAuthPath?: string;
 
-    /** Required GPU number for trial job. The number should be in [0,100] */
-    public readonly gpuNum : number;
-    
-    constructor(command : string, gpuNum : number, 
-        cpuNum: number, memoryMB: number, image: string) {
+    // Trail command
+    public readonly command: string;
+
+    // Required GPU number for trial job. The number should be in [0,100]
+    public readonly gpuNum: number;
+
+    constructor(command: string, gpuNum: number,
+                cpuNum: number, memoryMB: number, image: string, privateRegistryAuthPath?: string) {
         this.command = command;
         this.gpuNum = gpuNum;
         this.cpuNum = cpuNum;
         this.memoryMB = memoryMB;
         this.image = image;
+        this.privateRegistryAuthPath = privateRegistryAuthPath;
     }
 }
 

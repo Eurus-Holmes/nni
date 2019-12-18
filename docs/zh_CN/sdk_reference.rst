@@ -8,6 +8,8 @@ Trial（尝试）
 ..  autofunction:: nni.get_current_parameter
 ..  autofunction:: nni.report_intermediate_result
 ..  autofunction:: nni.report_final_result
+..  autofunction:: nni.get_experiment_id
+..  autofunction:: nni.get_trial_id
 ..  autofunction:: nni.get_sequence_id
 
 
@@ -22,10 +24,10 @@ Tuner（调参器）
 ..  autoclass:: nni.evolution_tuner.evolution_tuner.EvolutionTuner
     :members:
 
-..  autoclass:: nni.smac_tuner.smac_tuner.SMACTuner
+..  autoclass:: nni.smac_tuner.SMACTuner
     :members:
 
-..  autoclass:: nni.gridsearch_tuner.gridsearch_tuner.GridSearchTuner
+..  autoclass:: nni.gridsearch_tuner.GridSearchTuner
     :members:
 
 ..  autoclass:: nni.networkmorphism_tuner.networkmorphism_tuner.NetworkMorphismTuner
@@ -34,20 +36,35 @@ Tuner（调参器）
 ..  autoclass:: nni.metis_tuner.metis_tuner.MetisTuner
     :members:
 
+..  autoclass:: nni.ppo_tuner.PPOTuner
+    :members:
+
+..  autoclass:: nni.batch_tuner.batch_tuner.BatchTuner
+    :members:
+
+..  autoclass:: nni.gp_tuner.gp_tuner.GPTuner
+    :members:
+
 Assessor（评估器）
 ------------------------
 ..  autoclass:: nni.assessor.Assessor
     :members:
 
-..  autoclass:: nni.curvefitting_assessor.curvefitting_assessor.CurvefittingAssessor
+..  autoclass:: nni.assessor.AssessResult
     :members:
 
-..  autoclass:: nni.medianstop_assessor.medianstop_assessor.MedianstopAssessor
+..  autoclass:: nni.curvefitting_assessor.CurvefittingAssessor
+    :members:
+
+..  autoclass:: nni.medianstop_assessor.MedianstopAssessor
     :members:
 
 
 Advisor
 ------------------------
+..  autoclass:: nni.msg_dispatcher_base.MsgDispatcherBase
+    :members:
+
 ..  autoclass:: nni.hyperband_advisor.hyperband_advisor.Hyperband
     :members:
 
